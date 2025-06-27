@@ -8,9 +8,9 @@ class DataBaseHandler
 {
 public:
     bool openDataBase(QString fileName);
-    bool createTAbles();
+   // bool createTables();
     //crud for users
-    bool registerUser(QString userName, QString password, QString role);
+    bool registerUser(QString name, QString username, QString password,QString city, QString cityArea);
     QSqlQuery readUser(QString userName);
     QSqlQuery readAllUsers();
     bool deleteUser(QString userName);
