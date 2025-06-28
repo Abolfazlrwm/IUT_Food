@@ -9,15 +9,19 @@ CONFIG += c++17
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
+    adminpanel.cpp \
     databasehandler.cpp \
     main.cpp \
-    mainwindow.cpp
+    mainwindow.cpp \
+    user.cpp
 
 HEADERS += \
+    adminpanel.h \
     databasehandler.h \
-    mainwindow.h
-
+    mainwindow.h \
+    user.h
 FORMS += \
+    adminpanel.ui \
     mainwindow.ui
 
 # Default rules for deployment.
