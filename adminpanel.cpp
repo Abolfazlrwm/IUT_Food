@@ -1,5 +1,6 @@
 #include "adminpanel.h"
 #include "ui_adminpanel.h"
+#include <QMessageBox>
 
 AdminPanel::AdminPanel(DataBaseHandler* handler,QWidget *parent)
     : QMainWindow(parent)
@@ -7,12 +8,23 @@ AdminPanel::AdminPanel(DataBaseHandler* handler,QWidget *parent)
     , ui(new Ui::AdminPanel)
 {
     ui->setupUi(this);
+    setupConnections();
+    loadUsers();
+    loadOrders();
 }
 
 AdminPanel::~AdminPanel()
 {
     delete ui;
 }
+
+int AdminPanel::getSelectedUserId() const
+{
+    int row = ui->tableUsers->currentRow();
+    if (row < 0) return -1;
+    return ui->tableUsers->item(row, 0)->text().toInt();
+}
+
 
 void AdminPanel::on_btnRefreshUsers_clicked()
 {
@@ -87,3 +99,88 @@ void AdminPanel::loadOrders()
     // Resize columns in order to see texts
     ui->tableOrders->resizeColumnsToContents();
 }
+
+
+void AdminPanel::on_btnBlock_clicked()
+{
+    blockSelectedUser();
+}
+
+void AdminPanel::blockSelectedUser()
+{
+    int userId = getSelectedUserId();
+    if (userId < 0) {
+        QMessageBox::warning(this, "No Selection", "Please select a user first!");
+        return;
+    }
+
+    if (dbHandler->blockUser(userId)) {
+        QMessageBox::information(this, "Success", "User blocked successfully.");
+        loadUsers();
+    }
+}
+
+
+void AdminPanel::on_btnUnblock_clicked()
+{
+    unblockSelectedUser();
+}
+
+void AdminPanel::unblockSelectedUser(){
+    int userId = getSelectedUserId();
+    if (userId < 0) {
+    QMessageBox::warning(this,"No Selection", "Please select a user first!");
+        return;
+    }
+
+    if (dbHandler->unblockUser(userId)) {
+        QMessageBox::information(this,"Success","User unblocked successfully.");
+        loadUsers();
+    }
+}
+
+
+void AdminPanel::on_btnDelete_clicked()
+{
+    int userId = getSelectedUserId();
+    if (userId < 0) {
+        QMessageBox::warning(this,"No Selection", "Please select a user first!");
+        return;
+    }
+
+    if (dbHandler->deleteUser(userId)) {
+        QMessageBox::information(this, "Deleted", "User deleted successfully.");
+        loadUsers();
+    }
+}
+
+
+void AdminPanel::on_btnApprove_clicked()
+{
+    int userId = getSelectedUserId();
+    if (userId < 0) {
+        QMessageBox::warning(this, "No Selection", "Please select a restaurant first!");
+        return;
+    }
+
+    if (dbHandler->approveRestaurant(userId)) {
+        QMessageBox::information(this, "Approved", "Restaurant approved successfully.");
+        loadUsers();
+    }
+}
+
+
+void AdminPanel::on_btnDisapprove_clicked()
+{
+    int userId = getSelectedUserId();
+    if (userId < 0) {
+        QMessageBox::warning(this, "No Selection", "Please select a restaurant first!");
+        return;
+    }
+
+    if (dbHandler->disapproveRestaurant(userId)) {
+        QMessageBox::information(this, "Disapproved", "Restaurant disapproved successfully.");
+        loadUsers();
+    }
+}
+
