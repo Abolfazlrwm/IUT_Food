@@ -9,17 +9,13 @@
 #include <QPushButton>
 #include <QLineEdit>
 #include <QFormLayout>
-
-ProfilePanel::ProfilePanel(QWidget *parent) : QWidget(parent)
+#include <QSqlQuery>
+#include <QVariant>
+#include "databasehandler.h"
+ProfilePanel::ProfilePanel(DataBaseHandler *dbHandler ,QWidget *parent) : QWidget(parent), m_dbHandler(dbHandler)
 {
     qDebug() << "PROFILE PANEL CONSTRUCTOR CALLED!";
-    this->setAttribute(Qt::WA_DeleteOnClose); // این خط را اضافه کنید
-
-
-    this->setStyleSheet(
-        "QWidget { background-color: #FFFFFF; border-radius: 8px; }"
-        "QListWidget { border: none; background-color: #F0F0F0; }"
-        );
+    this->setAttribute(Qt::WA_DeleteOnClose);
     this->setFixedSize(550, 350);
     setupUI();
 }
@@ -48,6 +44,7 @@ void ProfilePanel::setupUI()
     m_navigationList->setCurrentRow(0);
 }
 
+
 QWidget* ProfilePanel::createHistoryPage()
 {
     QWidget *page = new QWidget;
@@ -55,10 +52,36 @@ QWidget* ProfilePanel::createHistoryPage()
     QListWidget *historyList = new QListWidget(page);
     layout->addWidget(new QLabel("تاریخچه سفارشات شما:", page));
     layout->addWidget(historyList);
-    historyList->addItem("سفارش تست - تحویل شده");
+
+    // --- منطق خواندن از دیتابیس ---
+    if (!m_dbHandler) {
+        historyList->addItem("خطا: اتصال به دیتابیس برقرار نیست.");
+        return page;
+    }
+
+    QSqlQuery query = m_dbHandler->readAllOrders();
+
+    bool hasOrders = query.first(); // چک می‌کنیم آیا حداقل یک رکورد وجود دارد
+    if (hasOrders) {
+        query.previous(); // نشانگر را به قبل از اولین رکورد برمی‌گردانیم تا حلقه همه را بخواند
+        while (query.next()) {
+            int orderId = query.value("id").toInt();
+            QString status = query.value("status").toString();
+            double price = query.value("total_price").toDouble();
+
+            QString displayText = QString("سفارش شماره %1 - وضعیت: %2 - مبلغ: %3 تومان")
+                                      .arg(orderId)
+                                      .arg(status)
+                                      .arg(price);
+
+            historyList->addItem(displayText);
+        }
+    } else {
+        historyList->addItem("هیچ سفارشی تاکنون ثبت نشده است.");
+    }
+
     return page;
 }
-
 QWidget* ProfilePanel::createSettingsPage()
 {
     QWidget *page = new QWidget;

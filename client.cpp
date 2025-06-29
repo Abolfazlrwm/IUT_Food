@@ -3,12 +3,15 @@
 #include "profilepanel.h"
 #include "shoppingcartpopup.h"
 #include "checkoutdialog.h" // برای استفاده از دیالوگ پرداخت
-
-// هدرهای فراموش شده برای انیمیشن
+#include "databasehandler.h"
 #include <QPropertyAnimation>
 #include <QRect>
-
-// سایر هدرها
+#include "restaurantitemwidget.h"
+#include "databasehandler.h"
+#include "datatypes.h"
+#include <QListWidgetItem>
+#include <QSqlQuery>
+#include <QVariant>
 #include <QLabel>
 #include <QDebug>
 #include <QMenu>
@@ -18,18 +21,22 @@
 #include <QEvent>
 #include <QMouseEvent>
 
-Client::Client(QWidget *parent)
+Client::Client(DataBaseHandler *dbHandler ,QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::Client)
+    , m_dbHandler(dbHandler)
 {
     ui->setupUi(this);
 
     m_profilePanel = nullptr;
     m_cartMenu = nullptr;
     m_cartPopup = nullptr;
+    connect(ui->applyFilterButton, &QPushButton::clicked, this, &Client::on_applyFilterButton_clicked);
+    on_applyFilterButton_clicked();
+
+
 
     installEventFilter(this);
-
     setupToolbarActions();
 }
 
@@ -83,7 +90,7 @@ void Client::on_actionProfile_triggered()
     }
 
     // ۱. یک نمونه جدید بدون والد می‌سازیم تا یک پنجره مستقل باشد
-    m_profilePanel = new ProfilePanel(nullptr);
+    m_profilePanel = new ProfilePanel(m_dbHandler ,nullptr);
 
     // ۲. این ویژگی باعث می‌شود با بسته شدن پنجره، حافظه آن به صورت خودکار آزاد شود
     m_profilePanel->setAttribute(Qt::WA_DeleteOnClose);
@@ -104,7 +111,31 @@ void Client::on_actionProfile_triggered()
     // ۶. پنجره جدید را نمایش می‌دهیم
     m_profilePanel->show();
 }
+// امضای تابع تغییر می‌کند تا کوئری را به عنوان ورودی دریافت کند
+void Client::populateRestaurantList(QSqlQuery &query)
+{
+    ui->restaurantListWidget->clear();
 
+    // دیگر نیازی به اجرای کوئری در اینجا نیست، چون از ورودی تابع می‌آید
+
+    while (query.next())
+    {
+        Restaurant r;
+        r.id = query.value("id").toInt();
+        r.name = query.value("name").toString();
+        r.type = query.value("type").toString();
+        r.location = query.value("location").toString();
+        r.priceRange = query.value("price_range").toInt();
+        r.logoPath = query.value("logo_path").toString();
+
+        QListWidgetItem *item = new QListWidgetItem(ui->restaurantListWidget);
+        RestaurantItemWidget *widget = new RestaurantItemWidget();
+        widget->setRestaurantData(r);
+
+        item->setSizeHint(widget->sizeHint());
+        ui->restaurantListWidget->setItemWidget(item, widget);
+    }
+}
 bool Client::eventFilter(QObject *watched, QEvent *event)
 {
     if (m_profilePanel && event->type() == QEvent::MouseButtonPress) {
@@ -127,6 +158,21 @@ void Client::onShowCheckoutDialog()
         m_cartMenu->hide();
     }
 
-    //CheckoutDialog checkoutDialog(this);
-    //checkoutDialog.exec();
+    CheckoutDialog checkoutDialog(this);
+    checkoutDialog.exec();
+}
+void Client::on_applyFilterButton_clicked()
+{
+    if (!m_dbHandler) return;
+
+    // خواندن مقادیر فعلی از تمام فیلترها
+    QString nameFilter = ui->searchLineEdit->text();
+    QString typeFilter = ui->typeFilterCombo->currentText();
+    QString locationFilter = ui->locationFilterCombo->currentText();
+
+    // فراخوانی تابع دیتابیس با همه فیلترها
+    QSqlQuery query = m_dbHandler->getAllRestaurants(typeFilter, locationFilter, nameFilter);
+
+    // پر کردن لیست با نتایج فیلتر شده (تابع populateRestaurantList از قبل نوشته شده)
+    populateRestaurantList(query);
 }

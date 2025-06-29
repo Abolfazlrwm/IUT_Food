@@ -1,15 +1,25 @@
 #include "client.h"
+#include "databasehandler.h" // <<<
 #include <QApplication>
-#include <QStyleFactory> // <<< این هدر را اضافه کنید
+#include <QMessageBox>
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
-    // این خط، استایل برنامه را به "Fusion" که یک استایل استاندارد و روشن است، تغییر می‌دهد
-    QApplication::setStyle(QStyleFactory::create("Fusion"));
+    // ۱. ساخت یک نمونه از مدیر دیتابیس
+    DataBaseHandler dbHandler;
 
-    Client w;
+    // ۲. باز کردن و ساخت جداول
+    if (!dbHandler.openDataBase("iut_food.db")) {
+        QMessageBox::critical(nullptr, "خطای دیتابیس", "برنامه قادر به اتصال به پایگاه داده نیست.");
+        return -1;
+    }
+    dbHandler.createTables();
+
+    // ۳. پاس دادن اشاره‌گر دیتابیس به پنجره اصلی
+    Client w(&dbHandler);
     w.show();
+
     return a.exec();
 }

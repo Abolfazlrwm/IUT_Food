@@ -1,4 +1,5 @@
 QT       += core gui sql widgets
+
 CONFIG   += c++11
 
 SOURCES += \
@@ -6,15 +7,20 @@ SOURCES += \
     main.cpp \
     client.cpp \
     profilepanel.cpp \
+    databasehandler.cpp \
+    restaurantitemwidget.cpp \
     shoppingcartpopup.cpp
 
 HEADERS += \
     checkoutdialog.h \
     client.h \
     profilepanel.h \
-    shoppingcartpopup.h
+    databasehandler.h \
+    restaurantitemwidget.h \
+    shoppingcartpopup.h \
+    datatypes.h
 
 FORMS += \
-    client.ui
-
-
+    checkoutdialog.ui \
+    client.ui \
+    restaurantitemwidget.ui

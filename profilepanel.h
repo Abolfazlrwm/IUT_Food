@@ -5,13 +5,13 @@
 
 class QListWidget;
 class QStackedWidget;
-
+class DataBaseHandler;
 class ProfilePanel : public QWidget
 {
     Q_OBJECT
 
 public:
-    explicit ProfilePanel(QWidget *parent = nullptr);
+    explicit ProfilePanel(DataBaseHandler *dbHandler ,QWidget *parent = nullptr);
 
 private:
     void setupUI();
@@ -20,6 +20,7 @@ private:
 
     QListWidget* m_navigationList;
     QStackedWidget* m_contentStack;
+    DataBaseHandler *m_dbHandler;
 };
 
 #endif // PROFILEPANEL_H
