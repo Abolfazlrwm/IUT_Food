@@ -11,8 +11,10 @@ SOURCES += \
     networkmanager.cpp \
     profilepanel.cpp \
     databasehandler.cpp \
+    restaurantdelegate.cpp \
     restaurantitemwidget.cpp \
     restaurantlistdialog.cpp \
+    restaurantmodel.cpp \
     shoppingcart.cpp \
     shoppingcartpopup.cpp
 
@@ -24,8 +26,10 @@ HEADERS += \
     networkmanager.h \
     profilepanel.h \
     databasehandler.h \
+    restaurantdelegate.h \
     restaurantitemwidget.h \
     restaurantlistdialog.h \
+    restaurantmodel.h \
     shoppingcart.h \
     shoppingcartpopup.h \
     datatypes.h

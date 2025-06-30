@@ -15,7 +15,7 @@
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <item>
-    <widget class="QListWidget" name="restaurantListWidget"/>
+    <widget class="QListView" name="restaurantListView"/>
    </item>
    <item>
     <widget class="QDialogButtonBox" name="buttonBox">

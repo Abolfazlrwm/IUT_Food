@@ -80,11 +80,7 @@ bool DataBaseHandler::createTables() {
 
     // داده تستی با انکودینگ صحیح
 
-    q.prepare("INSERT INTO restaurants (name, type, location, price_range) VALUES (?, ?, ?, ?)");
-    q.addBindValue("رستوران نایب");
-    q.addBindValue("ایرانی");
-    q.addBindValue("تهران");
-    q.addBindValue(3);
+
 
     if (!q.exec()) {
         qDebug() << "Insert error:" << q.lastError().text();

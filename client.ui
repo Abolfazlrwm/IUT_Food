@@ -21,7 +21,10 @@
     <item row="0" column="1">
      <widget class="QLineEdit" name="searchLineEdit">
       <property name="text">
-       <string>جست و جوی رستوران...</string>
+       <string/>
+      </property>
+      <property name="placeholderText">
+       <string>نام رستوران برای جست و جو را وارد کنید:</string>
       </property>
      </widget>
     </item>
@@ -29,7 +32,7 @@
      <widget class="QComboBox" name="locationFilterCombo">
       <item>
        <property name="text">
-        <string>انتخاب کنید</string>
+        <string>همه</string>
        </property>
       </item>
       <item>
@@ -46,11 +49,6 @@
     </item>
     <item row="2" column="1">
      <widget class="QComboBox" name="typeFilterCombo">
-      <item>
-       <property name="text">
-        <string>انخاب کنید ...</string>
-       </property>
-      </item>
       <item>
        <property name="text">
         <string>همه</string>

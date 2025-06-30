@@ -206,9 +206,7 @@ void Client::onNewChatMessage(const QJsonObject& chatData)
 
 void Client::on_showRestaurantsButton_clicked()
 {
-    qDebug() << "Show Restaurants button clicked!";
-
-    // ۱. خواندن مقادیر فعلی از فیلترها در UI
+    // ۱. خواندن مقادیر فیلترها از UI
     QString nameFilter = ui->searchLineEdit->text();
     QString typeFilter = ui->typeFilterCombo->currentText();
     QString locationFilter = ui->locationFilterCombo->currentText();
@@ -216,7 +214,7 @@ void Client::on_showRestaurantsButton_clicked()
     // ۲. ساخت و اجرای دیالوگ نتایج با پاس دادن فیلترها
     RestaurantListDialog resultsDialog(nameFilter, typeFilter, locationFilter, m_dbHandler, this);
 
-    // ۳. اتصال سیگنال افزودن به سبد خرید از دیالوگ نتایج به سبد خرید مرکزی
+    // ۳. اتصال سیگنال افزودن به سبد خرید
     connect(&resultsDialog, &RestaurantListDialog::itemAddedToCart, this,
             [this](const QJsonObject& foodData, int quantity) {
 
@@ -226,7 +224,7 @@ void Client::on_showRestaurantsButton_clicked()
                                                    .arg(foodData["name"].toString()), 3000);
             });
 
-    resultsDialog.exec(); // نمایش دیالوگ
+    resultsDialog.exec();
 }
 void Client::onRestaurantsReceived(const QJsonArray& restaurantsData)
 {
