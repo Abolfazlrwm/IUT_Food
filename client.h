@@ -1,13 +1,16 @@
 #ifndef CLIENT_H
 #define CLIENT_H
-#include <QSqlQuery>
+
 #include <QMainWindow>
+#include <QJsonArray> // برای اسلات onRestaurantsReceived
 
 // Forward declarations
+class DataBaseHandler;
 class ProfilePanel;
 class ShoppingCartPopup;
 class QMenu;
-class DataBaseHandler;
+class QListWidgetItem; // برای اسلات onRestaurantClicked
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class Client; }
 QT_END_NAMESPACE
@@ -15,30 +18,31 @@ QT_END_NAMESPACE
 class Client : public QMainWindow
 {
     Q_OBJECT
-
 public:
-    Client(DataBaseHandler* dbHandler, QWidget *parent = nullptr);
+    explicit Client(DataBaseHandler *dbHandler, QWidget *parent = nullptr);
     ~Client();
+signals:
+    void historyChanged();
 
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
-
 private slots:
     void on_actionProfile_triggered();
-    void on_applyFilterButton_clicked();
-    // اسلات‌های سبد خرید
     void onCartMenuAboutToShow();
-    void onShowCheckoutDialog(); // <<< این اسلات فراموش شده بود
-
+    void onShowCheckoutDialog();
+    void on_applyFilterButton_clicked();
+    void onRestaurantClicked(QListWidgetItem *item);
+    void onRestaurantsReceived(const QJsonArray& restaurantsData); // اسلات برای دریافت داده از شبکه
+    void onOrderStatusUpdated(const QJsonObject& orderData);
 private:
-    void setupToolbarActions();
-    void createCartMenu(); // این تابع را از setupToolbarActions جدا می‌کنیم برای تمیزی بیشتر
-    void populateRestaurantList(QSqlQuery &query);
+    void setupActions();
+    void createCartMenu();
+    void populateRestaurantList(); // این تابع دیگر ورودی ندارد
     Ui::Client *ui;
-
+    DataBaseHandler *m_dbHandler;
     ProfilePanel *m_profilePanel;
     ShoppingCartPopup *m_cartPopup;
     QMenu *m_cartMenu;
-    DataBaseHandler *m_dbHandler;
+    // MenuPage *m_menuPage; // این را بعدا اضافه می‌کنیم
 };
 #endif // CLIENT_H

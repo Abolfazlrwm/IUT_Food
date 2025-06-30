@@ -1,5 +1,6 @@
 #include "client.h"
-#include "databasehandler.h" // <<<
+#include "databasehandler.h"
+#include "networkmanager.h"
 #include <QApplication>
 #include <QMessageBox>
 
@@ -7,17 +8,18 @@ int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
-    // ۱. ساخت یک نمونه از مدیر دیتابیس
+    // ۱. ساخت مدیر دیتابیس
     DataBaseHandler dbHandler;
-
-    // ۲. باز کردن و ساخت جداول
-    if (!dbHandler.openDataBase("iut_food.db")) {
-        QMessageBox::critical(nullptr, "خطای دیتابیس", "برنامه قادر به اتصال به پایگاه داده نیست.");
+    if (!dbHandler.openDataBase("iut_food_client.db")) {
+        QMessageBox::critical(nullptr, "Database Error", "Could not connect to the database.");
         return -1;
     }
     dbHandler.createTables();
 
-    // ۳. پاس دادن اشاره‌گر دیتابیس به پنجره اصلی
+    // ۲. اتصال به سرور
+    NetworkManager::getInstance()->connectToServer();
+
+    // ۳. ساخت پنجره اصلی و پاس دادن اشاره‌گر دیتابیس به آن
     Client w(&dbHandler);
     w.show();
 

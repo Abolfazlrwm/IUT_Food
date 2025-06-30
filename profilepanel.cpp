@@ -19,6 +19,9 @@ ProfilePanel::ProfilePanel(DataBaseHandler *dbHandler ,QWidget *parent) : QWidge
     this->setFixedSize(550, 350);
     setupUI();
 }
+void ProfilePanel::refreshHistory(){
+    createHistoryPage();
+}
 
 void ProfilePanel::setupUI()
 {
@@ -67,14 +70,10 @@ QWidget* ProfilePanel::createHistoryPage()
         while (query.next()) {
             int orderId = query.value("id").toInt();
             QString status = query.value("status").toString();
-            double price = query.value("total_price").toDouble();
+            QString displayText = QString("سفارش شماره %1 - وضعیت: %2").arg(orderId).arg(status);
 
-            QString displayText = QString("سفارش شماره %1 - وضعیت: %2 - مبلغ: %3 تومان")
-                                      .arg(orderId)
-                                      .arg(status)
-                                      .arg(price);
-
-            historyList->addItem(displayText);
+            QListWidgetItem *item = new QListWidgetItem(displayText, historyList);
+            item->setData(Qt::UserRole, orderId); // <<< ذخیره ID سفارش در آیتم
         }
     } else {
         historyList->addItem("هیچ سفارشی تاکنون ثبت نشده است.");

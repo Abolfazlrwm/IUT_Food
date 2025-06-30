@@ -12,6 +12,8 @@ class ProfilePanel : public QWidget
 
 public:
     explicit ProfilePanel(DataBaseHandler *dbHandler ,QWidget *parent = nullptr);
+public slots:
+    void refreshHistory();
 
 private:
     void setupUI();

@@ -7,6 +7,7 @@
 #include <QString>
 #include <QList>
 #include <QSqlError>
+#include <QJsonObject>
 
 class DataBaseHandler
 {
@@ -41,9 +42,14 @@ public:
     QSqlQuery readAllOrders();
 
     //restaurants
-    QSqlQuery getAllRestaurants();
     QSqlQuery getAllRestaurants(const QString& typeFilter, const QString& locationFilter, const QString& nameFilter);
     QSqlQuery getMenuItemsForRestaurant(int restaurantId);
+
+    //cache
+    bool clearRestaurantsTable();
+    bool addRestaurant(const QJsonObject& restaurantData);
+    bool createNewOrder(const QJsonObject& orderData); // <<< برای ثبت سفارش جدید
+
 };
 
 #endif // DATABASEHANDLER_H

@@ -2,5 +2,9 @@
     <qresource prefix="/icons">
         <file>shopping-cart.png</file>
         <file>user.png</file>
+        <file>icons/kebab.png</file>
+        <file>icons/pizza.png</file>
+        <file>pizza.png</file>
+        <file>kebab.png</file>
     </qresource>
 </RCC>

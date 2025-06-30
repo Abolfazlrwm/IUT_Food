@@ -23,10 +23,31 @@ ShoppingCartPopup::ShoppingCartPopup(QWidget *parent) : QWidget(parent)
     this->setFixedSize(300, 350);
 }
 
+#include "shoppingcart.h" // <<< این را اضافه کنید
+
 void ShoppingCartPopup::updateContent()
 {
-    // TODO: این بخش باید با داده‌های واقعی سبد خرید پر شود
     m_itemList->clear();
-    m_itemList->addItem("پیتزا پپرونی (1 عدد)");
-    m_totalPriceLabel->setText("جمع کل: 280,000 تومان");
+
+    ShoppingCart* cart = ShoppingCart::getInstance();
+    const auto& items = cart->getItems();
+
+    if (items.isEmpty()) {
+        m_itemList->addItem("سبد خرید شما خالی است.");
+    } else {
+        // حلقه روی تمام آیتم‌های موجود در سبد خرید
+        for (const CartItem &cartItem : items) {
+            QString name = cartItem.foodData["name"].toString();
+            int quantity = cartItem.quantity;
+
+            QString displayText = QString("%1 (تعداد: %2)")
+                                      .arg(name)
+                                      .arg(quantity);
+            m_itemList->addItem(displayText);
+        }
+    }
+
+    // محاسبه و نمایش قیمت نهایی
+    double totalPrice = cart->getTotalPrice();
+    m_totalPriceLabel->setText(QString("جمع کل: %1 تومان").arg(totalPrice));
 }

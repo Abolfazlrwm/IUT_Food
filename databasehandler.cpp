@@ -36,14 +36,18 @@ bool DataBaseHandler::createTables() {
         "created_at TEXT"
         ")"
         );
+    // databasehandler.cpp -> createTables()
+
+    // ...
     bool ok3 = q.exec(
         "CREATE TABLE IF NOT EXISTS restaurants ("
         "id INTEGER PRIMARY KEY, name TEXT, type TEXT, "
-        "location TEXT, price_range INTEGER, logo_path TEXT)");
-    //test
-    q.exec("INSERT OR IGNORE INTO restaurants (id, name, type, location, price_range, logo_path) VALUES (1, 'پیتزا پینو', 'فست فود', 'مرداویج', 2, ':/icons/pizza.png')");
-    q.exec("INSERT OR IGNORE INTO restaurants (id, name, type, location, price_range, logo_path) VALUES (2, 'رستوران شهرزاد', 'ایرانی', 'چهارباغ', 3, ':/icons/kebab.png')");
-    q.exec("INSERT OR IGNORE INTO restaurants (id, name, type, location, price_range, logo_path) VALUES (3, 'کافه آنی', 'کافه', 'جلفا', 2, ':/icons/coffee.png')");
+        "location TEXT, price_range INTEGER)"); // <<< logo_url حذف شد
+
+    // داده تستی بدون مسیر عکس
+    q.exec("INSERT OR IGNORE INTO restaurants (id, name, type, location, price_range) VALUES (1, 'پیتزا پینو', 'فست فود', 'مرداویج', 2)");
+    q.exec("INSERT OR IGNORE INTO restaurants (id, name, type, location, price_range) VALUES (2, 'رستوران شهرزاد', 'ایرانی', 'چهارباغ', 3)");
+    // ...
     bool ok4 = q.exec(
         "CREATE TABLE IF NOT EXISTS menu_items ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -64,8 +68,23 @@ bool DataBaseHandler::createTables() {
     // منوی رستوران شهرزاد (restaurant_id = 2)
     q.exec("INSERT OR IGNORE INTO menu_items (restaurant_id, name, description, price, category) VALUES (2, 'چلوکباب کوبیده', 'دو سیخ کباب با برنج ایرانی', 250000, 'غذای اصلی')");
     q.exec("INSERT OR IGNORE INTO menu_items (restaurant_id, name, description, price, category) VALUES (2, 'دوغ محلی', 'یک پارچ', 40000, 'نوشیدنی')");
+    bool ok5 = q.exec(
+        "CREATE TABLE IF NOT EXISTS order_items ("
+        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
+        "order_id INTEGER,"          // کلید خارجی به جدول orders
+        "menu_item_id INTEGER,"     // کلید خارجی به جدول menu_items
+        "quantity INTEGER,"         // تعداد سفارش داده شده از این آیتم
+        "price_per_item REAL,"      // قیمت هر واحد در زمان خرید
+        "FOREIGN KEY(order_id) REFERENCES orders(id),"
+        "FOREIGN KEY(menu_item_id) REFERENCES menu_items(id)"
+        ")"
+        );
+    // داده تستی برای آیتم‌های یک سفارش (مثلا برای سفارش با id=101 که قبلا ساختیم)
+    q.exec("INSERT OR IGNORE INTO order_items (order_id, menu_item_id, quantity, price_per_item) VALUES (101, 1, 2, 140000)"); // 2 عدد پیتزا
+    q.exec("INSERT OR IGNORE INTO order_items (order_id, menu_item_id, quantity, price_per_item) VALUES (101, 2, 1, 30000)");  // 1 عدد نوشابه
 
-    return ok1 && ok2 &&ok3 && ok4;
+    return ok1 && ok2 && ok3 && ok4 && ok5; // <<< ok5 را اضافه کنید
+
 }
 QSqlQuery DataBaseHandler::getMenuItemsForRestaurant(int restaurantId) {
     QSqlQuery q;
@@ -179,11 +198,7 @@ QSqlQuery DataBaseHandler::readAllOrders() {
 }
 //restaurants
 
-QSqlQuery DataBaseHandler::getAllRestaurants() {
-    QSqlQuery q;
-    q.exec("SELECT id, name, type, logo_path, price_range FROM restaurants");
-    return q;
-}
+
 QSqlQuery DataBaseHandler::getAllRestaurants(const QString& typeFilter, const QString& locationFilter, const QString& nameFilter) {
     QSqlQuery q;
     QString queryString = "SELECT * FROM restaurants WHERE 1=1";
@@ -199,6 +214,74 @@ QSqlQuery DataBaseHandler::getAllRestaurants(const QString& typeFilter, const QS
         queryString += " AND name LIKE '%" + nameFilter + "%'";
     }
     q.prepare(queryString);
+    q.exec();
+    return q;
+}
+bool DataBaseHandler::clearRestaurantsTable()
+{
+    QSqlQuery query;
+    if (!query.exec("DELETE FROM restaurants")) {
+        qDebug() << "Failed to clear restaurants table:" << query.lastError().text();
+        return false;
+    }
+    return true;
+}
+
+// این تابع یک رستوران جدید (که از سرور به صورت JSON آمده) را به جدول اضافه می‌کند
+bool DataBaseHandler::addRestaurant(const QJsonObject& restaurantData)
+{
+    QSqlQuery query;
+    query.prepare("INSERT INTO restaurants (id, name, type, location, price_range, logo_path) "
+                  "VALUES (:id, :name, :type, :location, :price_range, :logo_path)");
+
+    query.bindValue(":id", restaurantData["id"].toInt());
+    query.bindValue(":name", restaurantData["name"].toString());
+    query.bindValue(":type", restaurantData["type"].toString());
+    query.bindValue(":location", restaurantData["location"].toString());
+    query.bindValue(":price_range", restaurantData["price_range"].toInt());
+    query.bindValue(":logo_path", restaurantData["logo_path"].toString());
+
+    if (!query.exec()) {
+        qDebug() << "Failed to add restaurant:" << query.lastError().text();
+        return false;
+    }
+    return true;
+}
+bool DataBaseHandler::createNewOrder(const QJsonObject& orderData)
+{
+    QSqlQuery query;
+    query.prepare("INSERT INTO orders (id, customer_id, restaurant_id, status, total_price, created_at) "
+                  "VALUES (:id, :customer_id, :restaurant_id, :status, :total_price, :created_at)");
+
+    query.bindValue(":id", orderData["id"].toInt());
+    query.bindValue(":customer_id", orderData["customer_id"].toInt());
+    query.bindValue(":restaurant_id", orderData["restaurant_id"].toInt());
+    query.bindValue(":status", orderData["status"].toString());
+    query.bindValue(":total_price", orderData["total_price"].toDouble());
+    query.bindValue(":created_at", orderData["created_at"].toString());
+
+    if (!query.exec()) {
+        qDebug() << "Failed to create new order in local DB:" << query.lastError().text();
+        return false;
+    }
+    return true;
+}
+QSqlQuery DataBaseHandler::getOrderDetails(int orderId) {
+    QSqlQuery q;
+    q.prepare("SELECT * FROM orders WHERE id = ?");
+    q.addBindValue(orderId);
+    q.exec();
+    return q;
+}
+
+QSqlQuery DataBaseHandler::getOrderItems(int orderId) {
+    QSqlQuery q;
+    // با JOIN کردن، نام غذا را از جدول menu_items می‌گیریم
+    q.prepare("SELECT mi.name, oi.quantity, oi.price_per_item "
+              "FROM order_items oi "
+              "JOIN menu_items mi ON oi.menu_item_id = mi.id "
+              "WHERE oi.order_id = ?");
+    q.addBindValue(orderId);
     q.exec();
     return q;
 }
