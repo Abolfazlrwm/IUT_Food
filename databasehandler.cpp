@@ -1,5 +1,5 @@
 #include "databasehandler.h"
-
+#include <QFont>
 DataBaseHandler::DataBaseHandler() {
     db = QSqlDatabase::addDatabase("QSQLITE");
 }
@@ -10,6 +10,8 @@ bool DataBaseHandler::openDataBase(const QString& fileName) {
         qDebug() << "Error opening DB:" << db.lastError().text();
         return false;
     }
+
+
     return true;
 }
 
@@ -45,8 +47,7 @@ bool DataBaseHandler::createTables() {
         "location TEXT, price_range INTEGER)"); // <<< logo_url حذف شد
 
     // داده تستی بدون مسیر عکس
-    q.exec("INSERT OR IGNORE INTO restaurants (id, name, type, location, price_range) VALUES (1, 'پیتزا پینو', 'فست فود', 'مرداویج', 2)");
-    q.exec("INSERT OR IGNORE INTO restaurants (id, name, type, location, price_range) VALUES (2, 'رستوران شهرزاد', 'ایرانی', 'چهارباغ', 3)");
+
     // ...
     bool ok4 = q.exec(
         "CREATE TABLE IF NOT EXISTS menu_items ("
@@ -62,12 +63,7 @@ bool DataBaseHandler::createTables() {
 
     // اضافه کردن داده تستی برای منوی رستوران‌ها
     // منوی پیتزا پینو (restaurant_id = 1)
-    q.exec("INSERT OR IGNORE INTO menu_items (restaurant_id, name, description, price, category) VALUES (1, 'پیتزا پپرونی', 'خمیر ایتالیایی، سس مخصوص، پپرونی تند', 280000, 'پیتزا')");
-    q.exec("INSERT OR IGNORE INTO menu_items (restaurant_id, name, description, price, category) VALUES (1, 'نوشابه کوکا کولا', 'بطری خانواده', 30000, 'نوشیدنی')");
 
-    // منوی رستوران شهرزاد (restaurant_id = 2)
-    q.exec("INSERT OR IGNORE INTO menu_items (restaurant_id, name, description, price, category) VALUES (2, 'چلوکباب کوبیده', 'دو سیخ کباب با برنج ایرانی', 250000, 'غذای اصلی')");
-    q.exec("INSERT OR IGNORE INTO menu_items (restaurant_id, name, description, price, category) VALUES (2, 'دوغ محلی', 'یک پارچ', 40000, 'نوشیدنی')");
     bool ok5 = q.exec(
         "CREATE TABLE IF NOT EXISTS order_items ("
         "id INTEGER PRIMARY KEY AUTOINCREMENT,"
@@ -80,8 +76,19 @@ bool DataBaseHandler::createTables() {
         ")"
         );
     // داده تستی برای آیتم‌های یک سفارش (مثلا برای سفارش با id=101 که قبلا ساختیم)
-    q.exec("INSERT OR IGNORE INTO order_items (order_id, menu_item_id, quantity, price_per_item) VALUES (101, 1, 2, 140000)"); // 2 عدد پیتزا
-    q.exec("INSERT OR IGNORE INTO order_items (order_id, menu_item_id, quantity, price_per_item) VALUES (101, 2, 1, 30000)");  // 1 عدد نوشابه
+    // databasehandler.cpp -> createTables()
+
+    // داده تستی با انکودینگ صحیح
+
+    q.prepare("INSERT INTO restaurants (name, type, location, price_range) VALUES (?, ?, ?, ?)");
+    q.addBindValue("رستوران نایب");
+    q.addBindValue("ایرانی");
+    q.addBindValue("تهران");
+    q.addBindValue(3);
+
+    if (!q.exec()) {
+        qDebug() << "Insert error:" << q.lastError().text();
+    }
 
     return ok1 && ok2 && ok3 && ok4 && ok5; // <<< ok5 را اضافه کنید
 

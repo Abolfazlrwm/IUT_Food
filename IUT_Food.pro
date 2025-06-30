@@ -34,4 +34,7 @@ FORMS += \
     menudialog.ui \
     menuitemwidget.ui \
     restaurantitemwidget.ui
-
+    # Force the compiler to handle source code and execution as UTF-8
+    # This is often necessary for MinGW on Windows to display non-English characters correctly.
+    QMAKE_CXXFLAGS += -fexec-charset=UTF-8
+    QMAKE_CXXFLAGS += -finput-charset=UTF-8

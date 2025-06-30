@@ -1,9 +1,10 @@
 #include "shoppingcartpopup.h"
+#include "shoppingcart.h"
 #include <QVBoxLayout>
 #include <QListWidget>
 #include <QLabel>
 #include <QPushButton>
-
+#include <QVariant>
 ShoppingCartPopup::ShoppingCartPopup(QWidget *parent) : QWidget(parent)
 {
     // ساخت ظاهر کلی ویجت
@@ -23,18 +24,22 @@ ShoppingCartPopup::ShoppingCartPopup(QWidget *parent) : QWidget(parent)
     this->setFixedSize(300, 350);
 }
 
-#include "shoppingcart.h" // <<< این را اضافه کنید
+
 
 void ShoppingCartPopup::updateContent()
 {
+    // ابتدا لیست را پاک می‌کنیم
     m_itemList->clear();
 
+    // نمونه سبد خرید مرکزی را می‌گیریم
     ShoppingCart* cart = ShoppingCart::getInstance();
     const auto& items = cart->getItems();
 
     if (items.isEmpty()) {
         m_itemList->addItem("سبد خرید شما خالی است.");
+        m_checkoutButton->setEnabled(false); // دکمه پرداخت را غیرفعال کن
     } else {
+        m_checkoutButton->setEnabled(true); // دکمه پرداخت را فعال کن
         // حلقه روی تمام آیتم‌های موجود در سبد خرید
         for (const CartItem &cartItem : items) {
             QString name = cartItem.foodData["name"].toString();

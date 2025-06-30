@@ -1,6 +1,6 @@
 #include "shoppingcart.h"
 #include <QDebug>
-
+#include <QVariant>
 ShoppingCart* ShoppingCart::instance = nullptr;
 
 ShoppingCart* ShoppingCart::getInstance() {

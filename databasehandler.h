@@ -40,6 +40,8 @@ public:
 
     // Orders
     QSqlQuery readAllOrders();
+    QSqlQuery getOrderDetails(int orderId);
+    QSqlQuery getOrderItems(int orderId);
 
     //restaurants
     QSqlQuery getAllRestaurants(const QString& typeFilter, const QString& locationFilter, const QString& nameFilter);

@@ -2,8 +2,9 @@
 #define MENUDIALOG_H
 
 #include <QDialog>
+#include <QJsonObject>
 
-class DataBaseHandler; // Forward declaration
+class DataBaseHandler;
 
 namespace Ui { class MenuDialog; }
 
@@ -11,9 +12,12 @@ class MenuDialog : public QDialog
 {
     Q_OBJECT
 public:
-    // کانستراکتور، ID رستوران را مستقیما دریافت می‌کند
-    explicit MenuDialog(int restaurantId, DataBaseHandler *dbHandler, QWidget *parent = nullptr);
+    // کانستراکتور حالا نام رستوران را هم دریافت می‌کند
+    explicit MenuDialog(int restaurantId, const QString& restaurantName, DataBaseHandler *dbHandler, QWidget *parent = nullptr);
     ~MenuDialog();
+
+signals:
+    void itemAddedToCart(const QJsonObject& foodData, int quantity);
 
 private:
     void populateMenuItems();
@@ -21,7 +25,5 @@ private:
     Ui::MenuDialog *ui;
     DataBaseHandler *m_dbHandler;
     int m_restaurantId;
-signals:
-    void itemAddedToCart(const QJsonObject& foodData, int quantity);
 };
 #endif // MENUDIALOG_H

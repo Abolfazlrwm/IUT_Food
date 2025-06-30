@@ -1,4 +1,5 @@
 #include "networkmanager.h"
+#include "profilepanel.h"
 #include <QJsonDocument>
 
 NetworkManager* NetworkManager::instance = nullptr;
@@ -46,6 +47,9 @@ void NetworkManager::onReadyRead()
             emit restaurantsReceived(obj["data"].toArray());
         } else if (messageType == "order_status_update_notification") {
             emit orderStatusUpdated(obj["data"].toObject());
+        }
+        else if(messageType == "new_chat_message_notification"){
+            emit newMessageReceived(obj["data"].toObject());
         }
         // ... سایر انواع پاسخ‌ها و اعلان‌ها ...
     }

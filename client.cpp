@@ -43,6 +43,7 @@ Client::Client(DataBaseHandler *dbHandler, QWidget *parent)
     // در شروع، یک بار لیست را بر اساس فیلترهای پیش‌فرض (خالی) پر می‌کنیم
     populateRestaurantList();
 
+
     // و یک درخواست برای گرفتن داده‌های جدید به سرور می‌فرستیم
     QJsonObject request;
     request["command"] = "get_restaurants";
@@ -72,6 +73,8 @@ void Client::setupActions()
     // اتصال به سیگنال‌های مدیر شبکه
     NetworkManager* netManager = NetworkManager::getInstance();
     connect(netManager, &NetworkManager::orderStatusUpdated, this, &Client::onOrderStatusUpdated);
+    // client.cpp -> setupActions()
+    connect(netManager, &NetworkManager::newMessageReceived, this, &Client::onNewChatMessage); // <<< اتصال جدید
 
     connect(netManager, &NetworkManager::restaurantsReceived, this, &Client::onRestaurantsReceived);
 }
@@ -114,31 +117,60 @@ void Client::onRestaurantsReceived(const QJsonArray& restaurantsData)
 }
 
 // این تابع لیست رستوران‌ها را از دیتابیس محلی (کش) می‌خواند و نمایش می‌دهد
+// client.cpp
+
+#include <QDebug> // برای چاپ پیام‌های دیباگ
+#include <QDebug> // برای چاپ پیام‌های دیباگ
+
 void Client::populateRestaurantList()
 {
     ui->restaurantListWidget->clear();
     if (!m_dbHandler) return;
 
-    // مقادیر فیلترها را از UI می‌خوانیم
+    // خواندن مقادیر فیلترها از UI
     QString nameFilter = ui->searchLineEdit->text();
     QString typeFilter = ui->typeFilterCombo->currentText();
     QString locationFilter = ui->locationFilterCombo->currentText();
 
-    // کوئری را بر اساس فیلترها از دیتابیس محلی اجرا می‌کنیم
+    // اجرای کوئری بر اساس فیلترها
     QSqlQuery query = m_dbHandler->getAllRestaurants(typeFilter, locationFilter, nameFilter);
+
     while (query.next())
     {
         Restaurant r;
         r.id = query.value("id").toInt();
-        r.name = query.value("name").toString();
-        r.type = query.value("type").toString();
-        r.location = query.value("location").toString();
 
+        // --- اصلاح کلیدی: خواندن تمام متون فارسی به صورت بایت خام ---
+        QByteArray nameBytes = query.value("name").toByteArray();
+        QByteArray typeBytes = query.value("type").toByteArray();
+        QByteArray locationBytes = query.value("location").toByteArray();
+
+        // --- و تبدیل دستی آنها به QString با انکودینگ صحیح UTF-8 ---
+        r.name = QString::fromUtf8(nameBytes);
+        r.type = QString::fromUtf8(typeBytes);
+        r.location = QString::fromUtf8(locationBytes);
+
+        r.priceRange = query.value("price_range").toInt();
+
+        // چاپ نام تبدیل شده برای اطمینان از صحت عملکرد
+        qDebug() << "Read and converted -> Name:" << r.name;
+
+        // --- بخش نمایش ویجت سفارشی (تنها روشی که استفاده می‌کنیم) ---
+
+        // ۱. یک آیتم (ردیف) جدید و خالی در لیست می‌سازیم
         QListWidgetItem *item = new QListWidgetItem(ui->restaurantListWidget);
-        item->setData(Qt::UserRole, r.id);
+
+        // ۲. ویجت سفارشی خود را می‌سازیم
         RestaurantItemWidget *widget = new RestaurantItemWidget();
+
+        // ۳. داده‌های صحیح را به آن می‌دهیم
         widget->setRestaurantData(r);
+
+        // ۴. اندازه آیتم را با اندازه ویجت سفارشی هماهنگ می‌کنیم
+        item->setData(Qt::UserRole, r.id);
         item->setSizeHint(widget->sizeHint());
+
+        // ۵. ویجت سفارشی را داخل آیتم خالی قرار می‌دهیم
         ui->restaurantListWidget->setItemWidget(item, widget);
     }
 }
@@ -158,12 +190,18 @@ void Client::on_applyFilterButton_clicked()
 void Client::onRestaurantClicked(QListWidgetItem *item)
 {
     int restaurantId = item->data(Qt::UserRole).toInt();
-    // ... (کد گرفتن نام رستوران)
+
+    // برای گرفتن نام رستوران، به ویجت سفارشی داخل آیتم دسترسی پیدا می‌کنیم
+    RestaurantItemWidget* widget = qobject_cast<RestaurantItemWidget*>(ui->restaurantListWidget->itemWidget(item));
+    QString restaurantName = "";
+    if (widget) {
+        // برای این کار باید یک تابع Getter به RestaurantItemWidget اضافه کنیم یا مستقیما از لیبل بخوانیم
+        restaurantName = widget->findChild<QLabel*>("nameLabel")->text();
+    }
 
     if (restaurantId > 0) {
-        MenuDialog menuDialog(restaurantId, m_dbHandler, this);
-
-        // اتصال سیگنال دیالوگ منو به یک لامبدا برای افزودن آیتم به سبد خرید
+        // حالا نام رستوران را هم به کانستراکتور پاس می‌دهیم
+        MenuDialog menuDialog(restaurantId, restaurantName, m_dbHandler, this);
         connect(&menuDialog, &MenuDialog::itemAddedToCart, this,
                 [](const QJsonObject& foodData, int quantity) {
 
@@ -189,6 +227,8 @@ void Client::on_actionProfile_triggered()
     connect(m_profilePanel, &QWidget::destroyed, [this]() {
         m_profilePanel = nullptr;
     });
+    connect(this, &Client::newChatMessage, m_profilePanel, &ProfilePanel::displayNewMessage);
+
     connect(this, &Client::historyChanged, m_profilePanel, &ProfilePanel::refreshHistory);
 
     m_profilePanel->show();
@@ -221,7 +261,7 @@ void Client::onShowCheckoutDialog()
         return;
     }
 
-    CheckoutDialog checkoutDialog(this);
+    CheckoutDialog checkoutDialog(cart, this);
     // ۱. دیالوگ را نمایش می‌دهیم و منتظر می‌مانیم تا کاربر آن را ببندد
     if (checkoutDialog.exec() == QDialog::Accepted)
     {
@@ -268,4 +308,12 @@ void Client::onOrderStatusUpdated(const QJsonObject& orderData)
 
     QMessageBox::information(this, "به‌روزرسانی سفارش",
                              QString("وضعیت سفارش شماره %1 تغییر کرد.").arg(orderData["id"].toInt()));
+}
+void Client::onNewChatMessage(const QJsonObject& chatData)
+{
+    // پیام را از JSON استخراج کرده و سیگنال می‌دهیم تا ProfilePanel آن را دریافت کند
+    int orderId = chatData["order_id"].toInt();
+    QString sender = chatData["sender"].toString();
+    QString message = chatData["message_text"].toString();
+    emit newChatMessage(orderId, sender, message);
 }

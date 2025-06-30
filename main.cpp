@@ -8,6 +8,9 @@ int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
+
+
+
     // ۱. ساخت مدیر دیتابیس
     DataBaseHandler dbHandler;
     if (!dbHandler.openDataBase("iut_food_client.db")) {

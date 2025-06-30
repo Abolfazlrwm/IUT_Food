@@ -22,6 +22,8 @@ RestaurantItemWidget::~RestaurantItemWidget()
 // در بالای فایل، include های imagecachemanager و QUrl را پاک کنید
 // ...
 void RestaurantItemWidget::setRestaurantData(const Restaurant &restaurant) {
+    qDebug() << "Setting data for widget. Name:" << restaurant.name; // <-- این خط را اضافه کنید
+
     ui->nameLabel->setText(restaurant.name);
     ui->typeLabel->setText(restaurant.type);
     // خط مربوط به عکس حذف شد

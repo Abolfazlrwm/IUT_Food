@@ -22,6 +22,7 @@ signals:
     void loginResponse(bool success, const QString& message);
     void restaurantsReceived(const QJsonArray& restaurantsData);
     void orderStatusUpdated(const QJsonObject& orderData);
+    void newMessageReceived(const QJsonObject& messageData);
 
 private slots:
     void onReadyRead();

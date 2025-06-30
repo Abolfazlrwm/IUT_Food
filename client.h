@@ -24,6 +24,7 @@ public:
 signals:
     void historyChanged();
 
+    void newChatMessage(int orderId, const QString& sender, const QString &message);
 protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
 private slots:
@@ -33,7 +34,10 @@ private slots:
     void on_applyFilterButton_clicked();
     void onRestaurantClicked(QListWidgetItem *item);
     void onRestaurantsReceived(const QJsonArray& restaurantsData); // اسلات برای دریافت داده از شبکه
+
     void onOrderStatusUpdated(const QJsonObject& orderData);
+    void onNewChatMessage(const QJsonObject& chatData); // اسلات جدید
+
 private:
     void setupActions();
     void createCartMenu();
