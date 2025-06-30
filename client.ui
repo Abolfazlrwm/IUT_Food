@@ -17,109 +17,61 @@
    <string>MainWindow</string>
   </property>
   <widget class="QWidget" name="centralwidget">
-   <layout class="QVBoxLayout" name="verticalLayout">
-    <item>
-     <widget class="QWidget" name="widget" native="true">
-      <layout class="QHBoxLayout" name="horizontalLayout">
-       <item>
-        <widget class="QPushButton" name="applyFilterButton">
-         <property name="text">
-          <string>اعمال فیلتر</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QLineEdit" name="searchLineEdit">
-         <property name="placeholderText">
-          <string>جستجوی نام رستوران...</string>
-         </property>
-        </widget>
-       </item>
-       <item>
-        <widget class="QComboBox" name="typeFilterCombo">
-         <item>
-          <property name="text">
-           <string>همه</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>فست فود</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>ایرانی</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>کافه</string>
-          </property>
-         </item>
-        </widget>
-       </item>
-       <item>
-        <widget class="QComboBox" name="locationFilterCombo">
-         <item>
-          <property name="text">
-           <string>همه</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>منطقه 1</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>منطقه 2</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>منطقه 3</string>
-          </property>
-         </item>
-        </widget>
-       </item>
-       <item>
-        <widget class="QComboBox" name="priceFilterButton">
-         <item>
-          <property name="text">
-           <string>همه</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>اقتصادی</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>متوسط</string>
-          </property>
-         </item>
-         <item>
-          <property name="text">
-           <string>گران</string>
-          </property>
-         </item>
-        </widget>
-       </item>
-      </layout>
+   <layout class="QFormLayout" name="formLayout">
+    <item row="0" column="1">
+     <widget class="QLineEdit" name="searchLineEdit">
+      <property name="text">
+       <string>جست و جوی رستوران...</string>
+      </property>
      </widget>
     </item>
-    <item>
-     <widget class="QListWidget" name="restaurantListWidget">
-      <property name="sizePolicy">
-       <sizepolicy hsizetype="Expanding" vsizetype="Expanding">
-        <horstretch>0</horstretch>
-        <verstretch>1</verstretch>
-       </sizepolicy>
-      </property>
-      <property name="alternatingRowColors">
-       <bool>true</bool>
+    <item row="1" column="1">
+     <widget class="QComboBox" name="locationFilterCombo">
+      <item>
+       <property name="text">
+        <string>انتخاب کنید</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>منطقه یک</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>منطقه 2</string>
+       </property>
+      </item>
+     </widget>
+    </item>
+    <item row="2" column="1">
+     <widget class="QComboBox" name="typeFilterCombo">
+      <item>
+       <property name="text">
+        <string>انخاب کنید ...</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>همه</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>فست فود</string>
+       </property>
+      </item>
+      <item>
+       <property name="text">
+        <string>ایرانی</string>
+       </property>
+      </item>
+     </widget>
+    </item>
+    <item row="3" column="1">
+     <widget class="QPushButton" name="showRestaurantsButton">
+      <property name="text">
+       <string>نمایش رستوران ها</string>
       </property>
      </widget>
     </item>

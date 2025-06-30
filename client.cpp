@@ -1,7 +1,7 @@
 #include "client.h"
 #include "ui_client.h"
 
-// هدرهای مورد نیاز برای تمام قابلیت‌ها
+// هدرهای مورد نیاز
 #include "profilepanel.h"
 #include "shoppingcartpopup.h"
 #include "checkoutdialog.h"
@@ -9,51 +9,49 @@
 #include "databasehandler.h"
 #include "networkmanager.h"
 #include "datatypes.h"
-#include <QLabel>
-#include <QDebug>
-#include <QListWidgetItem>
+#include "menudialog.h"
+#include "shoppingcart.h"
+#include "restaurantlistdialog.h"
+
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QScrollArea>
+#include <QLineEdit>
+#include <QComboBox>
+#include <QPushButton>
 #include <QSqlQuery>
 #include <QVariant>
+#include <QDebug>
+#include <QMessageBox>
 #include <QMenu>
 #include <QToolButton>
 #include <QWidgetAction>
 #include <QEvent>
 #include <QMouseEvent>
-#include <QDebug>
+#include <QStatusBar>
+
 
 
 Client::Client(DataBaseHandler *dbHandler, QWidget *parent)
-    : QMainWindow(parent)
-    , ui(new Ui::Client)
-    , m_dbHandler(dbHandler) // اشاره‌گر دیتابیس را ذخیره می‌کنیم
+    : QMainWindow(parent), ui(new Ui::Client), m_dbHandler(dbHandler)
 {
     ui->setupUi(this);
 
-    // پوینترها را در شروع کار حتما نال می‌کنیم
     m_profilePanel = nullptr;
     m_cartMenu = nullptr;
     m_cartPopup = nullptr;
 
     installEventFilter(this);
-    connect(ui->restaurantListWidget, &QListWidget::itemClicked, this, &Client::onRestaurantClicked);
-    // راه‌اندازی تمام اتصالات و بخش‌های دیگر
     setupActions();
     createCartMenu();
 
-    // در شروع، یک بار لیست را بر اساس فیلترهای پیش‌فرض (خالی) پر می‌کنیم
-    populateRestaurantList();
+    // اتصال دکمه نمایش رستوران‌ها به اسلات مربوطه
+    connect(ui->showRestaurantsButton, &QPushButton::clicked, this, &Client::on_showRestaurantsButton_clicked);
 
-
-    // و یک درخواست برای گرفتن داده‌های جدید به سرور می‌فرستیم
+    // یک درخواست اولیه برای گرفتن داده‌های جدید به سرور می‌فرستیم
     QJsonObject request;
     request["command"] = "get_restaurants";
     NetworkManager::getInstance()->sendJson(request);
-// client.cpp -> انتهای کانستراکتور
-
-// کد تست برای بارگذاری مستقیم عکس
-
-
-
 }
 
 Client::~Client()
@@ -61,157 +59,72 @@ Client::~Client()
     delete ui;
 }
 
-// این تابع تمام connect های برنامه را در یک جای تمیز مدیریت می‌کند
+
+
 void Client::setupActions()
 {
-    // اتصالات مربوط به UI اصلی
     connect(ui->actionProfile, &QAction::triggered, this, &Client::on_actionProfile_triggered);
-    connect(ui->applyFilterButton, &QPushButton::clicked, this, &Client::on_applyFilterButton_clicked);
-    connect(ui->restaurantListWidget, &QListWidget::itemClicked, this, &Client::onRestaurantClicked);
-    // client.cpp -> setupActions()
 
-    // اتصال به سیگنال‌های مدیر شبکه
     NetworkManager* netManager = NetworkManager::getInstance();
-    connect(netManager, &NetworkManager::orderStatusUpdated, this, &Client::onOrderStatusUpdated);
-    // client.cpp -> setupActions()
-    connect(netManager, &NetworkManager::newMessageReceived, this, &Client::onNewChatMessage); // <<< اتصال جدید
-
     connect(netManager, &NetworkManager::restaurantsReceived, this, &Client::onRestaurantsReceived);
+    connect(netManager, &NetworkManager::orderStatusUpdated, this, &Client::onOrderStatusUpdated);
+    connect(netManager, &NetworkManager::newMessageReceived, this, &Client::onNewChatMessage);
 }
 
-// این تابع مسئول ساخت منوی شناور سبد خرید است
 void Client::createCartMenu()
 {
     m_cartMenu = new QMenu(this);
     m_cartPopup = new ShoppingCartPopup(this);
-
     QWidgetAction *widgetAction = new QWidgetAction(this);
     widgetAction->setDefaultWidget(m_cartPopup);
     m_cartMenu->addAction(widgetAction);
-
     ui->actionCart->setMenu(m_cartMenu);
 
     QToolButton *cartButton = qobject_cast<QToolButton*>(ui->toolBar->widgetForAction(ui->actionCart));
-    if (cartButton) {
+    if (cartButton)
         cartButton->setPopupMode(QToolButton::InstantPopup);
-    }
 
     connect(m_cartMenu, &QMenu::aboutToShow, this, &Client::onCartMenuAboutToShow);
     connect(m_cartPopup, &ShoppingCartPopup::checkoutRequested, this, &Client::onShowCheckoutDialog);
 }
 
-//========== اسلات‌های مربوط به شبکه و دیتابیس ==========
+// void Client::populateRestaurantList()
+// {
+//     while (QLayoutItem* item = m_restaurantListLayout->takeAt(0)) {
+//         if(item->widget()) delete item->widget();
+//         delete item;
+//     }
 
-// وقتی لیست رستوران‌ها از سرور می‌رسد، این تابع اجرا می‌شود
-void Client::onRestaurantsReceived(const QJsonArray& restaurantsData)
-{
-    qDebug() << "Received restaurant list from server. Updating local cache...";
-    // ۱. جدول کش محلی را پاک می‌کنیم
-    m_dbHandler->clearRestaurantsTable();
-    // ۲. داده‌های جدید را در کش محلی ذخیره می‌کنیم
-    for (const QJsonValue &value : restaurantsData) {
-        m_dbHandler->addRestaurant(value.toObject());
-    }
-    // ۳. حالا UI را از روی کش آپدیت شده، بازخوانی می‌کنیم
-    populateRestaurantList();
-}
+//     if (!m_dbHandler) return;
 
-// این تابع لیست رستوران‌ها را از دیتابیس محلی (کش) می‌خواند و نمایش می‌دهد
-// client.cpp
+//     QSqlQuery query = m_dbHandler->getAllRestaurants(m_typeFilterCombo->currentText(), m_locationFilterCombo->currentText(), m_searchLineEdit->text());
+//     while (query.next()) {
+//         Restaurant r;
+//         r.id = query.value("id").toInt();
+//         r.name = QString::fromUtf8(query.value("name").toByteArray());
+//         r.type = QString::fromUtf8(query.value("type").toByteArray());
+//         r.location = QString::fromUtf8(query.value("location").toByteArray());
+//         r.priceRange = query.value("price_range").toInt();
 
-#include <QDebug> // برای چاپ پیام‌های دیباگ
-#include <QDebug> // برای چاپ پیام‌های دیباگ
+//         RestaurantItemWidget *widget = new RestaurantItemWidget();
+//         widget->setRestaurantData(r);
+//         connect(widget, &RestaurantItemWidget::clicked, this, &Client::onRestaurantClicked);
+//         m_restaurantListLayout->addWidget(widget);
+//     }
+//     m_restaurantListLayout->addStretch();
+// }
 
-void Client::populateRestaurantList()
-{
-    ui->restaurantListWidget->clear();
-    if (!m_dbHandler) return;
 
-    // خواندن مقادیر فیلترها از UI
-    QString nameFilter = ui->searchLineEdit->text();
-    QString typeFilter = ui->typeFilterCombo->currentText();
-    QString locationFilter = ui->locationFilterCombo->currentText();
 
-    // اجرای کوئری بر اساس فیلترها
-    QSqlQuery query = m_dbHandler->getAllRestaurants(typeFilter, locationFilter, nameFilter);
-
-    while (query.next())
-    {
-        Restaurant r;
-        r.id = query.value("id").toInt();
-
-        // --- اصلاح کلیدی: خواندن تمام متون فارسی به صورت بایت خام ---
-        QByteArray nameBytes = query.value("name").toByteArray();
-        QByteArray typeBytes = query.value("type").toByteArray();
-        QByteArray locationBytes = query.value("location").toByteArray();
-
-        // --- و تبدیل دستی آنها به QString با انکودینگ صحیح UTF-8 ---
-        r.name = QString::fromUtf8(nameBytes);
-        r.type = QString::fromUtf8(typeBytes);
-        r.location = QString::fromUtf8(locationBytes);
-
-        r.priceRange = query.value("price_range").toInt();
-
-        // چاپ نام تبدیل شده برای اطمینان از صحت عملکرد
-        qDebug() << "Read and converted -> Name:" << r.name;
-
-        // --- بخش نمایش ویجت سفارشی (تنها روشی که استفاده می‌کنیم) ---
-
-        // ۱. یک آیتم (ردیف) جدید و خالی در لیست می‌سازیم
-        QListWidgetItem *item = new QListWidgetItem(ui->restaurantListWidget);
-
-        // ۲. ویجت سفارشی خود را می‌سازیم
-        RestaurantItemWidget *widget = new RestaurantItemWidget();
-
-        // ۳. داده‌های صحیح را به آن می‌دهیم
-        widget->setRestaurantData(r);
-
-        // ۴. اندازه آیتم را با اندازه ویجت سفارشی هماهنگ می‌کنیم
-        item->setData(Qt::UserRole, r.id);
-        item->setSizeHint(widget->sizeHint());
-
-        // ۵. ویجت سفارشی را داخل آیتم خالی قرار می‌دهیم
-        ui->restaurantListWidget->setItemWidget(item, widget);
-    }
-}
-
-//========== اسلات‌های مربوط به رویدادهای UI ==========
-
-// وقتی دکمه "اعمال فیلتر" کلیک می‌شود، فقط لیست را بازخوانی می‌کنیم
-void Client::on_applyFilterButton_clicked()
-{
-    populateRestaurantList();
-}
-
-#include "menudialog.h" // <<< این هدر را اضافه کنید
-
-#include "shoppingcart.h" // <<< این را اضافه کنید
-
-void Client::onRestaurantClicked(QListWidgetItem *item)
-{
-    int restaurantId = item->data(Qt::UserRole).toInt();
-
-    // برای گرفتن نام رستوران، به ویجت سفارشی داخل آیتم دسترسی پیدا می‌کنیم
-    RestaurantItemWidget* widget = qobject_cast<RestaurantItemWidget*>(ui->restaurantListWidget->itemWidget(item));
-    QString restaurantName = "";
-    if (widget) {
-        // برای این کار باید یک تابع Getter به RestaurantItemWidget اضافه کنیم یا مستقیما از لیبل بخوانیم
-        restaurantName = widget->findChild<QLabel*>("nameLabel")->text();
-    }
-
-    if (restaurantId > 0) {
-        // حالا نام رستوران را هم به کانستراکتور پاس می‌دهیم
-        MenuDialog menuDialog(restaurantId, restaurantName, m_dbHandler, this);
-        connect(&menuDialog, &MenuDialog::itemAddedToCart, this,
-                [](const QJsonObject& foodData, int quantity) {
-
-                    // آیتم را به سبد خرید مرکزی اضافه می‌کنیم
-                    ShoppingCart::getInstance()->addItem(foodData, quantity);
-                });
-
-        menuDialog.exec();
-    }
-}
+// void Client::onRestaurantClicked(int restaurantId, const QString& restaurantName)
+// {
+//     MenuDialog menuDialog(restaurantId, restaurantName, m_dbHandler, this);
+//     connect(&menuDialog, &MenuDialog::itemAddedToCart, this, [this](const QJsonObject& foodData, int quantity) {
+//         ShoppingCart::getInstance()->addItem(foodData, quantity);
+//         this->statusBar()->showMessage(QString("%1 عدد %2 به سبد خرید اضافه شد.").arg(quantity).arg(foodData["name"].toString()), 3000);
+//     });
+//     menuDialog.exec();
+// }
 
 void Client::on_actionProfile_triggered()
 {
@@ -224,20 +137,14 @@ void Client::on_actionProfile_triggered()
     m_profilePanel->setAttribute(Qt::WA_DeleteOnClose);
     m_profilePanel->setWindowFlags(Qt::Dialog);
     m_profilePanel->setWindowTitle("پروفایل کاربری");
-    connect(m_profilePanel, &QWidget::destroyed, [this]() {
-        m_profilePanel = nullptr;
-    });
-    connect(this, &Client::newChatMessage, m_profilePanel, &ProfilePanel::displayNewMessage);
-
     connect(this, &Client::historyChanged, m_profilePanel, &ProfilePanel::refreshHistory);
-
+    connect(this, &Client::newChatMessage, m_profilePanel, &ProfilePanel::displayNewMessage);
+    connect(m_profilePanel, &QWidget::destroyed, [this]() { m_profilePanel = nullptr; });
     m_profilePanel->show();
 }
 
 bool Client::eventFilter(QObject *watched, QEvent *event)
 {
-    // این تابع دیگر برای پنل پروفایل که پنجره جداگانه است، کاربرد زیادی ندارد
-    // اما می‌توانید آن را برای کارهای دیگر نگه دارید
     return QMainWindow::eventFilter(watched, event);
 }
 
@@ -246,74 +153,87 @@ void Client::onCartMenuAboutToShow()
     m_cartPopup->updateContent();
 }
 
-#include "shoppingcart.h" // دسترسی به سبد خرید
-#include <QMessageBox>   // برای نمایش پیام به کاربر
-
 void Client::onShowCheckoutDialog()
 {
     if (m_cartMenu && m_cartMenu->isVisible()) {
         m_cartMenu->hide();
     }
-
     ShoppingCart* cart = ShoppingCart::getInstance();
     if (cart->getItems().isEmpty()) {
         QMessageBox::warning(this, "سبد خالی", "سبد خرید شما خالی است!");
         return;
     }
-
     CheckoutDialog checkoutDialog(cart, this);
-    // ۱. دیالوگ را نمایش می‌دهیم و منتظر می‌مانیم تا کاربر آن را ببندد
-    if (checkoutDialog.exec() == QDialog::Accepted)
-    {
-        // ۲. اگر کاربر "تایید" را زد، یک درخواست JSON برای سرور می‌سازیم
+    if (checkoutDialog.exec() == QDialog::Accepted) {
         QJsonObject orderRequest;
         orderRequest["command"] = "place_order";
-
-        // اطلاعات سبد خرید را به JSON اضافه می‌کنیم
-        QJsonArray itemsArray;
-        for(const auto& item : cart->getItems()) {
-            QJsonObject foodItem;
-            foodItem["id"] = item.foodData["id"];
-            foodItem["quantity"] = item.quantity;
-            itemsArray.append(foodItem);
-        }
-        orderRequest["items"] = itemsArray;
-        orderRequest["total_price"] = cart->getTotalPrice();
-        // TODO: شناسه کاربری که لاگین کرده را هم باید اضافه کنید
-        // orderRequest["user_id"] = ...;
-
-        // ۳. درخواست را از طریق شبکه به سرور ارسال می‌کنیم
+        // ... (منطق ساخت JSON برای سفارش) ...
         NetworkManager::getInstance()->sendJson(orderRequest);
-
-        // ۴. به کاربر اطلاع می‌دهیم و سبد خرید را خالی می‌کنیم
-        QMessageBox::information(this, "در حال ثبت", "سفارش شما برای سرور ارسال شد. منتظر تایید بمانید.");
+        QMessageBox::information(this, "در حال ثبت", "سفارش شما برای سرور ارسال شد.");
         cart->clearCart();
-        // پاپ‌آپ سبد خرید را هم آپدیت می‌کنیم تا خالی نشان داده شود
         m_cartPopup->updateContent();
-    }
-    else
-    {
-        // اگر کاربر "لغو" را زد
-        QMessageBox::information(this, "لغو شد", "ثبت سفارش توسط شما لغو شد.");
+    } else {
+        QMessageBox::information(this, "لغو شد", "ثبت سفارش لغو شد.");
     }
 }
+
+// <<< پیاده‌سازی اسلات‌های فراموش شده شبکه >>>
+// void Client::onRestaurantsReceived(const QJsonArray& restaurantsData)
+// {
+//     m_dbHandler->clearRestaurantsTable();
+//     for (const QJsonValue &value : restaurantsData) {
+//         m_dbHandler->addRestaurant(value.toObject());
+//     }
+//     RestaurantListDialog::populateRestaurantList();
+// }
+
 void Client::onOrderStatusUpdated(const QJsonObject& orderData)
 {
-    // داده‌های جدید سفارش را در دیتابیس محلی ذخیره یا آپدیت می‌کنیم
-    // (باید تابعی برای آپدیت هم در DataBaseHandler بنویسید)
-    m_dbHandler->createNewOrder(orderData); // یا updateOrder
-
-    // به همه خبر می‌دهیم که تاریخچه تغییر کرده است
+    qDebug() << "Order status updated for order ID:" << orderData["id"].toInt();
+    // m_dbHandler->updateOrder(orderData); // باید این تابع را بسازید
     emit historyChanged();
-
-    QMessageBox::information(this, "به‌روزرسانی سفارش",
-                             QString("وضعیت سفارش شماره %1 تغییر کرد.").arg(orderData["id"].toInt()));
+    QMessageBox::information(this, "به‌روزرسانی سفارش", "وضعیت یکی از سفارش‌های شما تغییر کرد.");
 }
+
 void Client::onNewChatMessage(const QJsonObject& chatData)
 {
-    // پیام را از JSON استخراج کرده و سیگنال می‌دهیم تا ProfilePanel آن را دریافت کند
     int orderId = chatData["order_id"].toInt();
     QString sender = chatData["sender"].toString();
     QString message = chatData["message_text"].toString();
     emit newChatMessage(orderId, sender, message);
+}
+// client.cpp
+
+void Client::on_showRestaurantsButton_clicked()
+{
+    qDebug() << "Show Restaurants button clicked!";
+
+    // ۱. خواندن مقادیر فعلی از فیلترها در UI
+    QString nameFilter = ui->searchLineEdit->text();
+    QString typeFilter = ui->typeFilterCombo->currentText();
+    QString locationFilter = ui->locationFilterCombo->currentText();
+
+    // ۲. ساخت و اجرای دیالوگ نتایج با پاس دادن فیلترها
+    RestaurantListDialog resultsDialog(nameFilter, typeFilter, locationFilter, m_dbHandler, this);
+
+    // ۳. اتصال سیگنال افزودن به سبد خرید از دیالوگ نتایج به سبد خرید مرکزی
+    connect(&resultsDialog, &RestaurantListDialog::itemAddedToCart, this,
+            [this](const QJsonObject& foodData, int quantity) {
+
+                ShoppingCart::getInstance()->addItem(foodData, quantity);
+                this->statusBar()->showMessage(QString("%1 عدد %2 به سبد خرید اضافه شد.")
+                                                   .arg(quantity)
+                                                   .arg(foodData["name"].toString()), 3000);
+            });
+
+    resultsDialog.exec(); // نمایش دیالوگ
+}
+void Client::onRestaurantsReceived(const QJsonArray& restaurantsData)
+{
+    qDebug() << "Received restaurant list from server. Updating local cache...";
+    m_dbHandler->clearRestaurantsTable();
+    for (const QJsonValue &value : restaurantsData) {
+        m_dbHandler->addRestaurant(value.toObject());
+    }
+    // نیازی به رفرش کردن UI نیست، چون کاربر خودش با کلیک روی دکمه نتایج را می‌بیند
 }

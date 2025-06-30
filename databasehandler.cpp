@@ -206,22 +206,39 @@ QSqlQuery DataBaseHandler::readAllOrders() {
 //restaurants
 
 
+// databasehandler.cpp
+
 QSqlQuery DataBaseHandler::getAllRestaurants(const QString& typeFilter, const QString& locationFilter, const QString& nameFilter) {
     QSqlQuery q;
     QString queryString = "SELECT * FROM restaurants WHERE 1=1";
 
+    // استفاده از QVariantMap برای نگهداری مقادیری که باید bind شوند
+    QVariantMap bindings;
+
     if (!typeFilter.isEmpty() && typeFilter != "همه") {
-        queryString += " AND type = '" + typeFilter + "'";
+        queryString += " AND type = :type";
+        bindings[":type"] = typeFilter;
     }
-    // کد جدید برای فیلتر منطقه
     if (!locationFilter.isEmpty() && locationFilter != "همه") {
-        queryString += " AND location = '" + locationFilter + "'";
+        queryString += " AND location = :location";
+        bindings[":location"] = locationFilter;
     }
     if (!nameFilter.isEmpty()) {
-        queryString += " AND name LIKE '%" + nameFilter + "%'";
+        queryString += " AND name LIKE :name";
+        bindings[":name"] = "%" + nameFilter + "%";
     }
+
     q.prepare(queryString);
-    q.exec();
+
+    // Bind کردن تمام مقادیر
+    for(auto it = bindings.constBegin(); it != bindings.constEnd(); ++it) {
+        q.bindValue(it.key(), it.value());
+    }
+
+    if(!q.exec()) {
+        qDebug() << "Failed to execute getAllRestaurants query:" << q.lastError().text();
+    }
+
     return q;
 }
 bool DataBaseHandler::clearRestaurantsTable()

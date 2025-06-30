@@ -1,32 +1,29 @@
 #include "shoppingcart.h"
 #include <QDebug>
 #include <QVariant>
-ShoppingCart* ShoppingCart::instance = nullptr;
 
-ShoppingCart* ShoppingCart::getInstance() {
-    if (!instance)
-        instance = new ShoppingCart();
-    return instance;
-}
 
 ShoppingCart::ShoppingCart(QObject *parent) : QObject(parent) {}
 
-void ShoppingCart::addItem(const QJsonObject &foodData, int quantity)
-{
-    int foodId = foodData["id"].toInt();
+ShoppingCart* ShoppingCart::instance = nullptr;
 
-    // اگر این غذا از قبل در سبد بود، فقط تعدادش را اضافه کن
+ShoppingCart* ShoppingCart::getInstance() {
+    if (!instance) instance = new ShoppingCart();
+    return instance;
+}
+
+void ShoppingCart::addItem(const QJsonObject &foodData, int quantity) {
+    int foodId = foodData["id"].toInt();
     if (m_items.contains(foodId)) {
         m_items[foodId].quantity += quantity;
     } else {
-        // اگر نبود، یک آیتم جدید بساز
         CartItem newItem;
         newItem.foodData = foodData;
         newItem.quantity = quantity;
         m_items.insert(foodId, newItem);
     }
-    qDebug() << "Item added/updated:" << foodData["name"].toString() << "Quantity:" << m_items[foodId].quantity;
-    emit cartUpdated(); // به همه اطلاع بده که سبد خرید آپدیت شد
+    qDebug() << "Cart updated! Item:" << foodData["name"].toString();
+    emit cartUpdated(); // اطلاع‌رسانی به همه
 }
 
 const QMap<int, CartItem>& ShoppingCart::getItems() const
