@@ -12,6 +12,7 @@
 #include <QMessageBox>
 #include <QHeaderView>
 #include <QDebug>
+#include <QObject>
 
 
 
@@ -23,10 +24,6 @@
 #include <QtCharts/QChart>
 #include <QValueAxis>
 #include <databasehandler.h>
-
-namespace Ui {
-class AdminPanel;
-}
 
 class AdminPanel : public QMainWindow
 {

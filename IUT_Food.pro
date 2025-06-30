@@ -1,4 +1,4 @@
-QT       += core gui widgets sql network
+QT       += core gui widgets sql network charts
 
 greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
 
@@ -21,7 +21,6 @@ HEADERS += \
     mainwindow.h \
     user.h
 FORMS += \
-    adminpanel.ui \
     mainwindow.ui
 
 # Default rules for deployment.
