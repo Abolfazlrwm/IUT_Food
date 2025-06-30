@@ -2,6 +2,26 @@
 #define ADMINPANEL_H
 
 #include <QMainWindow>
+#include <QTabWidget>
+#include <QWidget>
+#include <QVBoxLayout>
+#include <QHBoxLayout>
+#include <QPushButton>
+#include <QComboBox>
+#include <QTableWidget>
+#include <QMessageBox>
+#include <QHeaderView>
+#include <QDebug>
+
+
+
+#include <QtCharts/QChartView>
+#include <QtCharts/QBarSeries>
+#include <QtCharts/QBarSet>
+#include <QtCharts/QBarCategoryAxis>
+#include <QtCharts/QPieSeries>
+#include <QtCharts/QChart>
+#include <QValueAxis>
 #include <databasehandler.h>
 
 namespace Ui {
@@ -16,32 +36,64 @@ class AdminPanel : public QMainWindow
 public:
     explicit AdminPanel(DataBaseHandler* handler,QWidget *parent = nullptr);
     ~AdminPanel();
+
+
+private slots:
+    // User Management
     void loadUsers();
-    void loadOrders();
     void blockSelectedUser();
     void unblockSelectedUser();
     void deleteSelectedUser();
     void approveSelectedRestaurant();
     void disapproveSelectedRestaurant();
 
-private slots:
-    void on_btnRefreshUsers_clicked();
-    void on_btnRefreshOrders_clicked(); 
-    void on_btnBlock_clicked();
-    void on_btnUnblock_clicked();
-    void on_btnDelete_clicked();
-    void on_btnApprove_clicked();
-    void on_btnDisapprove_clicked();
+    // Orders
+    void loadOrders();
+
+    // Charts
+    void generateChart();
+    void showFoodSalesChart();
+    void showRestaurantRevenueChart();
+    void showActiveRestaurantsChart();
+
 
 private:
-    Ui::AdminPanel *ui;
+    // Shared
     DataBaseHandler* dbHandler;
 
-    // Method for getting user id
-    int getSelectedUserId() const;
+    // Tabs
+    QTabWidget* tabWidget;
 
-    // A method to set connections
+    // User Management Tab
+    QWidget* userTab;
+    QTableWidget* tableUsers;
+    QPushButton* btnBlock;
+    QPushButton* btnUnblock;
+    QPushButton* btnDelete;
+    QPushButton* btnApprove;
+    QPushButton* btnDisapprove;
+    QPushButton* btnRefreshUsers;
+
+    // Orders Tab
+    QWidget* ordersTab;
+    QTableWidget* tableOrders;
+    QPushButton* btnRefreshOrders;
+
+    // Reports Tab
+    QWidget* reportsTab;
+    QComboBox* comboChartType;
+    QPushButton* btnGenerateChart;
+    QChartView* chartView;
+
+    // Helpers
+    int getSelectedUserId() const;
     void setupConnections();
+
+    // UI Setup
+    void setupUI();
+    void setupUserTab();
+    void setupOrdersTab();
+    void setupReportsTab();
 };
 
 #endif // ADMINPANEL_H
