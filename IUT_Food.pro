@@ -1,29 +1,55 @@
 QT       += core gui widgets sql network charts
 
-greaterThan(QT_MAJOR_VERSION, 4): QT += widgets
-
-CONFIG += c++17
-
-# You can make your code fail to compile if it uses deprecated APIs.
-# In order to do so, uncomment the following line.
-#DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
+CONFIG   += c++11
 
 SOURCES += \
-    adminpanel.cpp \
-    databasehandler.cpp \
     main.cpp \
+    databasehandler.cpp \
+    adminpanel.cpp \
     mainwindow.cpp \
-    user.cpp
+    user.cpp \
+    client.cpp \
+    checkoutdialog.cpp \
+    menudialog.cpp \
+    menuitemwidget.cpp \
+    networkmanager.cpp \
+    profilepanel.cpp \
+    restaurantdelegate.cpp \
+    restaurantitemwidget.cpp \
+    restaurantlistdialog.cpp \
+    restaurantmodel.cpp \
+    shoppingcart.cpp \
+    shoppingcartpopup.cpp
 
 HEADERS += \
-    adminpanel.h \
     databasehandler.h \
+    adminpanel.h \
     mainwindow.h \
-    user.h
-FORMS += \
-    mainwindow.ui
+    user.h \
+    client.h \
+    checkoutdialog.h \
+    datatypes.h \
+    menudialog.h \
+    menuitemwidget.h \
+    networkmanager.h \
+    profilepanel.h \
+    restaurantdelegate.h \
+    restaurantitemwidget.h \
+    restaurantlistdialog.h \
+    restaurantmodel.h \
+    shoppingcart.h \
+    shoppingcartpopup.h
 
-# Default rules for deployment.
-qnx: target.path = /tmp/$${TARGET}/bin
-else: unix:!android: target.path = /opt/$${TARGET}/bin
-!isEmpty(target.path): INSTALLS += target
+FORMS += \
+    adminpanel.ui \
+    adminpanel.ui \
+    mainwindow.ui \
+    client.ui \
+    checkoutdialog.ui \
+    menudialog.ui \
+    menuitemwidget.ui \
+    restaurantitemwidget.ui \
+    restaurantlistdialog.ui
+
+QMAKE_CXXFLAGS += -fexec-charset=UTF-8
+QMAKE_CXXFLAGS += -finput-charset=UTF-8
