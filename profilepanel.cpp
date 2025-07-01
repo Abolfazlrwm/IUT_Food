@@ -26,8 +26,12 @@ ProfilePanel::ProfilePanel(DataBaseHandler *dbHandler ,QWidget *parent) : QWidge
     this->setAttribute(Qt::WA_DeleteOnClose);
     this->setFixedSize(550, 450); // کمی ارتفاع را بیشتر کردم
     m_currentOrderId = -1;
+    //m_currentRating = 0; // مقداردهی اولیه امتیاز
     setupUI();
 }
+
+ProfilePanel::~ProfilePanel(){};
+
 
 void ProfilePanel::refreshHistory()
 {
@@ -87,56 +91,138 @@ QWidget* ProfilePanel::createHistoryPage()
     return page;
 }
 
+// profilepanel.cpp
+
 QWidget* ProfilePanel::createSettingsPage()
 {
     QWidget *page = new QWidget;
     QFormLayout *layout = new QFormLayout(page);
     layout->setContentsMargins(20, 20, 20, 20);
-    layout->addRow("نام:", new QLineEdit());
-    layout->addRow("آدرس:", new QLineEdit());
-    layout->addRow(new QPushButton("ذخیره"));
+    layout->setSpacing(15);
+
+    // ۱. ساخت ویجت‌های UI با objectName مشخص
+    QLineEdit *nameEdit = new QLineEdit();
+    nameEdit->setObjectName("nameEdit");
+
+    QLineEdit *addressEdit = new QLineEdit();
+    addressEdit->setObjectName("addressEdit");
+
+    QPushButton *saveButton = new QPushButton("ذخیره تغییرات");
+
+    layout->addRow("نام کاربری:", nameEdit);
+    layout->addRow("آدرس:", addressEdit);
+    layout->addRow(saveButton);
+
+    // ۲. بارگذاری اطلاعات فعلی کاربر از دیتابیس
+    // توجه: در یک برنامه واقعی، شناسه کاربر باید پس از لاگین ذخیره شود
+    int currentUserId = 1; // فعلا شناسه کاربر را ۱ فرض می‌کنیم
+    if (m_dbHandler) {
+        QSqlQuery query = m_dbHandler->getUserDetails(currentUserId);
+        if (query.first()) {
+            nameEdit->setText(query.value("username").toString());
+            addressEdit->setText(query.value("address").toString());
+        }
+    }
+
+    // ۳. اتصال دکمه ذخیره به منطق ارسال به سرور
+    connect(saveButton, &QPushButton::clicked, this, [this, nameEdit, addressEdit](){
+        int currentUserId = 1; // دوباره شناسه کاربر را اینجا داریم
+
+        // خواندن مقادیر جدید از فیلدها
+        QString newName = nameEdit->text();
+        QString newAddress = addressEdit->text();
+
+        // ساخت درخواست JSON برای سرور
+        QJsonObject updateRequest;
+        updateRequest["command"] = "update_profile";
+        updateRequest["user_id"] = currentUserId;
+
+        QJsonObject data;
+        data["username"] = newName;
+        data["address"] = newAddress;
+        updateRequest["data"] = data;
+
+        // ارسال درخواست به سرور
+        NetworkManager::getInstance()->sendJson(updateRequest);
+
+        // آپدیت دیتابیس محلی (کش)
+        // در یک سناریوی بهتر، این کار باید پس از دریافت پاسخ موفق از سرور انجام شود
+        if (m_dbHandler) {
+            m_dbHandler->updateUserDetails(currentUserId, newName, newAddress);
+        }
+
+        QMessageBox::information(this, "ارسال شد", "درخواست تغییر اطلاعات برای سرور ارسال شد.");
+    });
+
     return page;
 }
 
-#include <QSpinBox> // <<< هدر جدید برای اسپین باکس
+// لطفاً این تابع را به طور کامل در profilepanel.cpp جایگزین کنید
+
+#include <QSpinBox> // این هدر را در بالای فایل profilepanel.cpp اضافه کنید
 
 QWidget* ProfilePanel::createOrderDetailPage()
 {
     QWidget *page = new QWidget();
     QVBoxLayout *mainLayout = new QVBoxLayout(page);
 
-    // ... (کد ساخت دکمه بازگشت، لیبل‌ها، لیست آیتم‌ها و بخش چت بدون تغییر باقی می‌ماند) ...
+    // بخش‌های دیگر (دکمه بازگشت، اطلاعات سفارش، لیست آیتم‌ها، چت) بدون تغییر باقی می‌مانند
+    QPushButton* backButton = new QPushButton(" بازگشت به لیست", page);
+    connect(backButton, &QPushButton::clicked, this, [this](){
+        m_contentStack->setCurrentIndex(0);
+        m_navigationList->setVisible(true);
+    });
 
-    // ========== بخش جدید و ساده شده برای امتیازدهی ==========
+    QLabel* orderIdLabel = new QLabel("سفارش شماره: -", page);
+    orderIdLabel->setObjectName("orderIdLabel");
+    QLabel* statusLabel = new QLabel("وضعیت: -", page);
+    statusLabel->setObjectName("statusLabel");
+    QListWidget* itemsList = new QListWidget(page);
+    itemsList->setObjectName("itemsList");
+    QTextEdit* chatHistory = new QTextEdit(page);
+    chatHistory->setReadOnly(true);
+    chatHistory->setObjectName("chatHistory");
+    QLineEdit* messageInput = new QLineEdit(page);
+    messageInput->setPlaceholderText("پیام خود را بنویسید...");
+    QPushButton* sendButton = new QPushButton("ارسال", page);
+    connect(sendButton, &QPushButton::clicked, this, [this, messageInput, chatHistory](){
+        if(messageInput->text().isEmpty() || m_currentOrderId == -1) return;
+        QJsonObject chatRequest;
+        chatRequest["command"] = "send_chat_message";
+        chatRequest["order_id"] = m_currentOrderId;
+        chatRequest["message_text"] = messageInput->text();
+        NetworkManager::getInstance()->sendJson(chatRequest);
+        chatHistory->append("شما: " + messageInput->text());
+        messageInput->clear();
+    });
+
+    // ========== بخش امتیازدهی (نسخه نهایی با QSpinBox) ==========
     QGroupBox *ratingBox = new QGroupBox("ثبت امتیاز و نظر", page);
     ratingBox->setObjectName("ratingBox");
-    ratingBox->setVisible(false); // در ابتدا مخفی باشد
+    ratingBox->setVisible(false); // در ابتدا مخفی است
 
-    QFormLayout *ratingLayout = new QFormLayout(ratingBox); // استفاده از FormLayout برای نظم بیشتر
+    QFormLayout *ratingLayout = new QFormLayout(ratingBox);
+    ratingLayout->setContentsMargins(10, 10, 10, 10);
+    ratingLayout->setSpacing(10);
 
     // ۱. ساخت اسپین باکس برای گرفتن امتیاز عددی
     QSpinBox* ratingSpinBox = new QSpinBox(ratingBox);
     ratingSpinBox->setObjectName("ratingSpinBox");
-    ratingSpinBox->setRange(1, 5); // محدوده امتیاز بین ۱ تا ۵
-    ratingSpinBox->setSuffix(" امتیاز"); // یک پسوند برای زیبایی
+    ratingSpinBox->setRange(1, 5); // امتیاز بین ۱ تا ۵
+    ratingSpinBox->setSuffix(" امتیاز");
+    ratingSpinBox->setButtonSymbols(QAbstractSpinBox::PlusMinus);
 
     // ۲. ساخت کادر متن برای نظر
     QTextEdit* reviewTextEdit = new QTextEdit(ratingBox);
     reviewTextEdit->setPlaceholderText("نظر خود را در مورد این سفارش بنویسید...");
+    reviewTextEdit->setFixedHeight(80);
 
     // ۳. ساخت دکمه ثبت نهایی
     QPushButton* submitReviewButton = new QPushButton("ثبت نهایی نظر", ratingBox);
 
-    // اضافه کردن ویجت‌ها به لی‌آوت فرم
-    ratingLayout->addRow("امتیاز شما:", ratingSpinBox);
-    ratingLayout->addRow("متن نظر:", reviewTextEdit);
-    ratingLayout->addRow(submitReviewButton);
-
-    // ===========================================
-
-    // اتصال دکمه ثبت نظر به منطق ارسال به سرور
+    // اتصال دکمه ثبت نظر
     connect(submitReviewButton, &QPushButton::clicked, this, [this, ratingSpinBox, reviewTextEdit, ratingBox](){
-        int rating = ratingSpinBox->value(); // خواندن امتیاز از اسپین باکس
+        int rating = ratingSpinBox->value();
 
         QJsonObject reviewRequest;
         reviewRequest["command"] = "submit_review";
@@ -148,11 +234,27 @@ QWidget* ProfilePanel::createOrderDetailPage()
 
         ratingBox->setEnabled(false);
         ratingBox->setTitle("نظر شما با موفقیت ثبت شد");
-        QMessageBox::information(this, "متشکریم", "نظر شما با موفقیت ثبت شد.");
+        QMessageBox::information(this, "متشکریم", "نظر شما ثبت شد.");
     });
 
-    // اضافه کردن بخش امتیازدهی به لی‌آوت اصلی صفحه
-    mainLayout->addWidget(ratingBox);
+    // اضافه کردن ویجت‌ها به لی‌آوت فرم
+    ratingLayout->addRow("امتیاز شما:", ratingSpinBox);
+    ratingLayout->addRow("متن نظر:", reviewTextEdit);
+    ratingLayout->addRow(submitReviewButton);
+    // ===========================================
+
+    // اضافه کردن تمام بخش‌ها به لی‌آوت اصلی صفحه با ترتیب صحیح
+    mainLayout->addWidget(backButton);
+    mainLayout->addWidget(orderIdLabel);
+    mainLayout->addWidget(statusLabel);
+    mainLayout->addWidget(new QLabel("اقلام سفارش:", page));
+    mainLayout->addWidget(itemsList);
+    mainLayout->addStretch();
+    mainLayout->addWidget(new QLabel("چت با رستوران:", page));
+    mainLayout->addWidget(chatHistory, 1);
+    mainLayout->addWidget(messageInput);
+    mainLayout->addWidget(sendButton);
+    mainLayout->addWidget(ratingBox); // بخش امتیازدهی در انتها
 
     return page;
 }
@@ -161,28 +263,56 @@ QWidget* ProfilePanel::createOrderDetailPage()
 // <<< این توابع حالا در سطح کلاس و خارج از توابع دیگر قرار دارند >>>
 // =================================================================
 
+// لطفاً مطمئن شوید تابع شما در profilepanel.cpp به این شکل است
+
 void ProfilePanel::loadOrderDetails(int orderId)
 {
-    m_currentOrderId = orderId;
-    QWidget* detailPage = m_contentStack->widget(2);
+    m_currentOrderId = orderId; // شناسه سفارش را ذخیره می‌کنیم
+
+    QWidget* detailPage = m_contentStack->widget(2); // صفحه جزئیات در ایندکس ۲ است
     if (!detailPage || !m_dbHandler) return;
 
-    // ... (کد پر کردن اطلاعات سفارش و آیتم‌ها) ...
+    // پیدا کردن ویجت‌ها با نامشان
+    QLabel* idLabel = detailPage->findChild<QLabel*>("orderIdLabel");
+    QLabel* statusLabel = detailPage->findChild<QLabel*>("statusLabel");
+    QListWidget* itemsList = detailPage->findChild<QListWidget*>("itemsList");
+    itemsList->clear();
 
     QString status;
+    bool reviewSubmitted = false; // برای قابلیت "فقط یکبار نظر دادن"
+
+    // گرفتن اطلاعات اصلی سفارش
     QSqlQuery orderQuery = m_dbHandler->getOrderDetails(orderId);
     if (orderQuery.first()) {
         status = orderQuery.value("status").toString();
-        // ... (تنظیم لیبل‌ها) ...
+        reviewSubmitted = orderQuery.value("review_submitted").toBool();
+        idLabel->setText("سفارش شماره: " + orderQuery.value("id").toString());
+        statusLabel->setText("وضعیت: " + status);
+    }
+
+    // گرفتن آیتم‌های سفارش
+    QSqlQuery itemsQuery = m_dbHandler->getOrderItems(orderId);
+    while(itemsQuery.next()) {
+        QString name = itemsQuery.value("name").toString();
+        itemsList->addItem(name);
     }
 
     // پیدا کردن جعبه امتیازدهی و کنترل نمایش آن
     QGroupBox* ratingBox = detailPage->findChild<QGroupBox*>("ratingBox");
     if (ratingBox) {
-        bool isDelivered = (status == "تحویل شده");
-        ratingBox->setVisible(isDelivered);
-        ratingBox->setEnabled(isDelivered);
-        if(isDelivered) ratingBox->setTitle("ثبت امتیاز و نظر");
+        if (reviewSubmitted) {
+            ratingBox->setVisible(true);
+            ratingBox->setEnabled(false);
+            ratingBox->setTitle("نظر شما قبلاً برای این سفارش ثبت شده است.");
+        }
+        else if (status == "تحویل شده") {
+            ratingBox->setVisible(true);
+            ratingBox->setEnabled(true);
+            ratingBox->setTitle("ثبت امتیاز و نظر");
+        }
+        else {
+            ratingBox->setVisible(false);
+        }
     }
 }
 

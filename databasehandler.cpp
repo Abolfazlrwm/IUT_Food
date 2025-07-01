@@ -1,5 +1,9 @@
 #include "databasehandler.h"
 #include <QFont>
+#include <QSqlError>
+#include <QVariant>
+#include <QDebug>
+#include <QDir>
 DataBaseHandler::DataBaseHandler() {
     db = QSqlDatabase::addDatabase("QSQLITE");
 }
@@ -7,74 +11,49 @@ DataBaseHandler::DataBaseHandler() {
 bool DataBaseHandler::openDataBase(const QString& fileName) {
     db.setDatabaseName(fileName);
     if (!db.open()) {
-        qDebug() << "Error opening DB:" << db.lastError().text();
+        qDebug() << "DATABASE ERROR: Could not open database at path:" << fileName;
+        qDebug() << "Error:" << db.lastError().text();
         return false;
     }
 
+    // این دستور به اتصال دیتابیس می‌گوید که از انکودینگ UTF-8 استفاده کند
+    QSqlQuery pragmaQuery(db);
+    if (!pragmaQuery.exec("PRAGMA encoding = 'UTF-8';")) {
+        qDebug() << "DATABASE WARNING: Failed to set UTF-8 encoding:" << pragmaQuery.lastError().text();
+    }
+
+    // مسیر دقیق فایل دیتابیس را در کنسول چاپ می‌کنیم
+    qDebug() << "DATABASE SUCCESS: Connected to database at:" << QDir(fileName).absolutePath();
 
     return true;
 }
 
 bool DataBaseHandler::createTables() {
     QSqlQuery q;
-    bool ok1 = q.exec(
-        "CREATE TABLE IF NOT EXISTS users ("
-        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "username TEXT UNIQUE,"
-        "password TEXT,"
-        "role TEXT,"
-        "is_active INTEGER DEFAULT 1,"
-        "is_approved INTEGER DEFAULT 0"
-        ")"
-        );
+    bool ok1 = q.exec("CREATE TABLE IF NOT EXISTS users ("
+                      "id INTEGER PRIMARY KEY, username TEXT, password TEXT, role TEXT, address TEXT)");
 
-    bool ok2 = q.exec(
-        "CREATE TABLE IF NOT EXISTS orders ("
-        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "customer_id INTEGER,"
-        "restaurant_id INTEGER,"
-        "status TEXT,"
-        "total_price REAL,"
-        "created_at TEXT"
-        ")"
-        );
-    // databasehandler.cpp -> createTables()
+    bool ok2 = q.exec("CREATE TABLE IF NOT EXISTS restaurants ("
+                      "id INTEGER PRIMARY KEY, name TEXT, type TEXT, location TEXT, price_range INTEGER)");
 
     // ...
-    bool ok3 = q.exec(
-        "CREATE TABLE IF NOT EXISTS restaurants ("
-        "id INTEGER PRIMARY KEY, name TEXT, type TEXT, "
-        "location TEXT, price_range INTEGER)"); // <<< logo_url حذف شد
+    bool ok3 = q.exec("CREATE TABLE IF NOT EXISTS menu_items ("
+                      "id INTEGER PRIMARY KEY, restaurant_id INTEGER, name TEXT, description TEXT, price REAL, category TEXT, "
+                      "FOREIGN KEY(restaurant_id) REFERENCES restaurants(id))");
 
     // داده تستی بدون مسیر عکس
 
     // ...
-    bool ok4 = q.exec(
-        "CREATE TABLE IF NOT EXISTS menu_items ("
-        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "restaurant_id INTEGER,"
-        "name TEXT,"
-        "description TEXT,"
-        "price REAL,"
-        "category TEXT,"
-        "FOREIGN KEY(restaurant_id) REFERENCES restaurants(id)" // تعریف کلید خارجی
-        ")"
-        );
+    bool ok4 = q.exec("CREATE TABLE IF NOT EXISTS orders ("
+                      "id INTEGER PRIMARY KEY, customer_id INTEGER, restaurant_id INTEGER, status TEXT, "
+                      "total_price REAL, created_at TEXT, review_submitted INTEGER DEFAULT 0)");
 
     // اضافه کردن داده تستی برای منوی رستوران‌ها
     // منوی پیتزا پینو (restaurant_id = 1)
 
-    bool ok5 = q.exec(
-        "CREATE TABLE IF NOT EXISTS order_items ("
-        "id INTEGER PRIMARY KEY AUTOINCREMENT,"
-        "order_id INTEGER,"          // کلید خارجی به جدول orders
-        "menu_item_id INTEGER,"     // کلید خارجی به جدول menu_items
-        "quantity INTEGER,"         // تعداد سفارش داده شده از این آیتم
-        "price_per_item REAL,"      // قیمت هر واحد در زمان خرید
-        "FOREIGN KEY(order_id) REFERENCES orders(id),"
-        "FOREIGN KEY(menu_item_id) REFERENCES menu_items(id)"
-        ")"
-        );
+    bool ok5 = q.exec("CREATE TABLE IF NOT EXISTS order_items ("
+                      "id INTEGER PRIMARY KEY, order_id INTEGER, menu_item_id INTEGER, quantity INTEGER, price_per_item REAL, "
+                      "FOREIGN KEY(order_id) REFERENCES orders(id), FOREIGN KEY(menu_item_id) REFERENCES menu_items(id))");
     // داده تستی برای آیتم‌های یک سفارش (مثلا برای سفارش با id=101 که قبلا ساختیم)
     // databasehandler.cpp -> createTables()
 
@@ -251,15 +230,14 @@ bool DataBaseHandler::clearRestaurantsTable()
 bool DataBaseHandler::addRestaurant(const QJsonObject& restaurantData)
 {
     QSqlQuery query;
-    query.prepare("INSERT INTO restaurants (id, name, type, location, price_range, logo_path) "
-                  "VALUES (:id, :name, :type, :location, :price_range, :logo_path)");
+    query.prepare("INSERT INTO restaurants (id, name, type, location, price_range) "
+                  "VALUES (:id, :name, :type, :location, :price_range)");
 
     query.bindValue(":id", restaurantData["id"].toInt());
     query.bindValue(":name", restaurantData["name"].toString());
     query.bindValue(":type", restaurantData["type"].toString());
     query.bindValue(":location", restaurantData["location"].toString());
     query.bindValue(":price_range", restaurantData["price_range"].toInt());
-    query.bindValue(":logo_path", restaurantData["logo_path"].toString());
 
     if (!query.exec()) {
         qDebug() << "Failed to add restaurant:" << query.lastError().text();
@@ -267,11 +245,14 @@ bool DataBaseHandler::addRestaurant(const QJsonObject& restaurantData)
     }
     return true;
 }
+// databasehandler.cpp
+
 bool DataBaseHandler::createNewOrder(const QJsonObject& orderData)
 {
     QSqlQuery query;
-    query.prepare("INSERT INTO orders (id, customer_id, restaurant_id, status, total_price, created_at) "
-                  "VALUES (:id, :customer_id, :restaurant_id, :status, :total_price, :created_at)");
+    // === دستور INSERT صحیح با ۷ پارامتر ===
+    query.prepare("INSERT INTO orders (id, customer_id, restaurant_id, status, total_price, created_at, review_submitted) "
+                  "VALUES (:id, :customer_id, :restaurant_id, :status, :total_price, :created_at, :review_submitted)");
 
     query.bindValue(":id", orderData["id"].toInt());
     query.bindValue(":customer_id", orderData["customer_id"].toInt());
@@ -279,6 +260,7 @@ bool DataBaseHandler::createNewOrder(const QJsonObject& orderData)
     query.bindValue(":status", orderData["status"].toString());
     query.bindValue(":total_price", orderData["total_price"].toDouble());
     query.bindValue(":created_at", orderData["created_at"].toString());
+    query.bindValue(":review_submitted", 0); // مقدار پیش‌فرض برای ستون جدید
 
     if (!query.exec()) {
         qDebug() << "Failed to create new order in local DB:" << query.lastError().text();
@@ -304,4 +286,65 @@ QSqlQuery DataBaseHandler::getOrderItems(int orderId) {
     q.addBindValue(orderId);
     q.exec();
     return q;
+}
+bool DataBaseHandler::updateOrderStatus(int orderId, const QString& newStatus)
+{
+    QSqlQuery query;
+    query.prepare("UPDATE orders SET status = :status WHERE id = :order_id");
+
+    query.bindValue(":status", newStatus);
+    query.bindValue(":order_id", orderId);
+
+    if (!query.exec()) {
+        qDebug() << "Failed to update order status for order ID" << orderId << ":" << query.lastError().text();
+        return false;
+    }
+
+    qDebug() << "Successfully updated status for order ID" << orderId << "to" << newStatus;
+    return true;
+}
+#include <QVariant>
+
+// این تابع را به انتهای databasehandler.cpp اضافه کنید
+bool DataBaseHandler::addOrderItems(int orderId, const QMap<int, CartItem>& items)
+{
+    bool all_ok = true;
+    QSqlQuery query;
+    query.prepare("INSERT INTO order_items (order_id, menu_item_id, quantity, price_per_item) "
+                  "VALUES (?, ?, ?, ?)");
+
+    // حلقه روی تمام آیتم‌های موجود در سبد خرید
+    for (const CartItem& item : items) {
+        query.addBindValue(orderId);
+        query.addBindValue(item.foodData["id"].toInt());
+        query.addBindValue(item.quantity);
+        query.addBindValue(item.foodData["price"].toDouble());
+
+        if (!query.exec()) {
+            qDebug() << "Failed to add order item:" << query.lastError().text();
+            all_ok = false;
+        }
+    }
+    return all_ok;
+}
+QSqlQuery DataBaseHandler::getUserDetails(int userId) {
+    QSqlQuery q;
+    q.prepare("SELECT username, address FROM users WHERE id = ?"); // فرض می‌کنیم ستون address وجود دارد
+    q.addBindValue(userId);
+    q.exec();
+    return q;
+}
+
+bool DataBaseHandler::updateUserDetails(int userId, const QString& newUsername, const QString& newAddress) {
+    QSqlQuery q;
+    q.prepare("UPDATE users SET username = :username, address = :address WHERE id = :id");
+    q.bindValue(":username", newUsername);
+    q.bindValue(":address", newAddress);
+    q.bindValue(":id", userId);
+
+    if (!q.exec()) {
+        qDebug() << "Failed to update user details:" << q.lastError().text();
+        return false;
+    }
+    return true;
 }

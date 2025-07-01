@@ -1,30 +1,29 @@
 #include "client.h"
 #include "databasehandler.h"
+#include "networkmanager.h" // برای دسترسی به مدیر شبکه
 #include <QApplication>
 #include <QMessageBox>
-#include <QDir>        // <<< هدر جدید برای کار با مسیرها
-#include <QDebug>      // <<< هدر جدید برای چاپ پیام دیباگ
+#include <QDir>
+#include <QDebug>
 
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
 
-    // ... (کد تنظیم فونت اگر دارید) ...
-
-    // ۱. مسیر دقیق کنار فایل اجرایی برنامه را پیدا می‌کنیم
+    // ۱. آماده‌سازی دیتابیس محلی
     QString dbPath = QCoreApplication::applicationDirPath() + "/iut_food_data.db";
-
-    // ۲. این مسیر را در خروجی چاپ می‌کنیم تا دقیقا بدانید فایل کجاست
     qDebug() << "Database file is expected at:" << dbPath;
-
     DataBaseHandler dbHandler;
-    // ۳. دیتابیس را با مسیر کامل و دقیق باز می‌کنیم
     if (!dbHandler.openDataBase(dbPath)) {
         QMessageBox::critical(nullptr, "Database Error", "Could not connect to the database.");
         return -1;
     }
     dbHandler.createTables();
 
+    // ۲. اتصال به سرور در ابتدای برنامه
+    NetworkManager::getInstance()->connectToServer("127.0.0.1", 1234);
+
+    // ۳. ساخت و نمایش پنجره اصلی
     Client w(&dbHandler);
     w.show();
 

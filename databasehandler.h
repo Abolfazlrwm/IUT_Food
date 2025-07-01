@@ -8,7 +8,8 @@
 #include <QList>
 #include <QSqlError>
 #include <QJsonObject>
-
+#include "shoppingcart.h"
+#include "datatypes.h"
 class DataBaseHandler
 {
 private:
@@ -37,11 +38,17 @@ public:
     // Login
     bool loginUser(const QString& userName, const QString& password);
     QString getUserRole(const QString& username);
+    QSqlQuery getUserDetails(int userId);
+    bool updateUserDetails(int userId, const QString& newUsername, const QString& newAddress); // مثال
+
 
     // Orders
     QSqlQuery readAllOrders();
     QSqlQuery getOrderDetails(int orderId);
     QSqlQuery getOrderItems(int orderId);
+    bool addOrderItems(int orderId, const QMap<int, CartItem>& items);
+  //  bool markOrderAsReviewed(int orderId);
+
 
     //restaurants
     QSqlQuery getAllRestaurants(const QString& typeFilter, const QString& locationFilter, const QString& nameFilter);
@@ -51,6 +58,8 @@ public:
     bool clearRestaurantsTable();
     bool addRestaurant(const QJsonObject& restaurantData);
     bool createNewOrder(const QJsonObject& orderData); // <<< برای ثبت سفارش جدید
+    bool updateOrderStatus(int orderId, const QString& newStatus);
+
 
 };
 

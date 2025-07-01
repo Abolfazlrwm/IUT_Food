@@ -35,7 +35,7 @@ private slots:
     void onShowCheckoutDialog();
 
     // اسلات‌های شبکه
-    void onRestaurantsReceived(const QJsonArray& restaurantsData);
+    //void onRestaurantsReceived(const QJsonArray& restaurantsData);
     void onOrderStatusUpdated(const QJsonObject& orderData);
     void onNewChatMessage(const QJsonObject& chatData);
 
