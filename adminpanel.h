@@ -31,7 +31,7 @@ class AdminPanel : public QMainWindow
 
 
 public:
-    explicit AdminPanel(DataBaseHandler* handler,QWidget *parent = nullptr);
+    explicit AdminPanel(QWidget *parent = nullptr);
     ~AdminPanel();
 
 
@@ -55,8 +55,6 @@ private slots:
 
 
 private:
-    // Shared
-    DataBaseHandler* dbHandler;
 
     // Tabs
     QTabWidget* tabWidget;

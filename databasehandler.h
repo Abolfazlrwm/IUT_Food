@@ -17,7 +17,6 @@ public:
     DataBaseHandler();
 
     // Connect and schema
-    bool openDataBase(const QString& fileName);
     bool createTables();
 
     // User CRUD

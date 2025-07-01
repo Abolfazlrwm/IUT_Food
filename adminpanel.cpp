@@ -1,8 +1,8 @@
 #include "AdminPanel.h"
 
 // ================== Constructor ==================
-AdminPanel::AdminPanel(DataBaseHandler* handler, QWidget *parent)
-    : QMainWindow(parent), dbHandler(handler)
+AdminPanel::AdminPanel(QWidget *parent)
+    : QMainWindow(parent)
 {
     setupUI();          // Build all tabs and UI
     setupConnections(); // Connect buttons to slots
@@ -143,8 +143,10 @@ void AdminPanel::loadUsers()
     headers << "ID" << "Username" << "Role" << "is_active" << "is_approved";
     tableUsers->setColumnCount(headers.size());
     tableUsers->setHorizontalHeaderLabels(headers);
+    tableUsers->horizontalHeader()->setStretchLastSection(true);
 
-    QSqlQuery q = dbHandler->readAllUsers();
+
+    QSqlQuery q(QSqlDatabase::database("main_connection"));
     int row = 0;
 
     while (q.next()) {
@@ -167,11 +169,19 @@ void AdminPanel::blockSelectedUser()
         QMessageBox::warning(this, "No Selection", "Please select a user first!");
         return;
     }
-    if (dbHandler->blockUser(userId)) {
+
+    QSqlQuery q(QSqlDatabase::database("main_connection"));
+    q.prepare("UPDATE users SET is_active = 0 WHERE id = ?");
+    q.addBindValue(userId);
+
+    if (q.exec()) {
         QMessageBox::information(this, "Success", "User blocked successfully.");
         loadUsers();
+    } else {
+        QMessageBox::warning(this, "Error", "Failed to block user.");
     }
 }
+
 
 // Unblock selected user
 void AdminPanel::unblockSelectedUser()
@@ -181,11 +191,19 @@ void AdminPanel::unblockSelectedUser()
         QMessageBox::warning(this, "No Selection", "Please select a user first!");
         return;
     }
-    if (dbHandler->unblockUser(userId)) {
+
+    QSqlQuery q(QSqlDatabase::database("main_connection"));
+    q.prepare("UPDATE users SET is_active = 1 WHERE id = ?");
+    q.addBindValue(userId);
+
+    if (q.exec()) {
         QMessageBox::information(this, "Success", "User unblocked successfully.");
         loadUsers();
+    } else {
+        QMessageBox::warning(this, "Error", "Failed to unblock user.");
     }
 }
+
 
 // Delete selected user
 void AdminPanel::deleteSelectedUser()
@@ -195,11 +213,19 @@ void AdminPanel::deleteSelectedUser()
         QMessageBox::warning(this, "No Selection", "Please select a user first!");
         return;
     }
-    if (dbHandler->deleteUser(userId)) {
+
+    QSqlQuery q(QSqlDatabase::database("main_connection"));
+    q.prepare("DELETE FROM users WHERE id = ?");
+    q.addBindValue(userId);
+
+    if (q.exec()) {
         QMessageBox::information(this, "Deleted", "User deleted successfully.");
         loadUsers();
+    } else {
+        QMessageBox::warning(this, "Error", "Failed to delete user.");
     }
 }
+
 
 // Approve restaurant
 void AdminPanel::approveSelectedRestaurant()
@@ -209,11 +235,19 @@ void AdminPanel::approveSelectedRestaurant()
         QMessageBox::warning(this, "No Selection", "Please select a restaurant first!");
         return;
     }
-    if (dbHandler->approveRestaurant(userId)) {
+
+    QSqlQuery q(QSqlDatabase::database("main_connection"));
+    q.prepare("UPDATE users SET is_approved = 1 WHERE id = ? AND role = 'restaurant'");
+    q.addBindValue(userId);
+
+    if (q.exec()) {
         QMessageBox::information(this, "Approved", "Restaurant approved successfully.");
         loadUsers();
+    } else {
+        QMessageBox::warning(this, "Error", "Failed to approve restaurant.");
     }
 }
+
 
 // Disapprove restaurant
 void AdminPanel::disapproveSelectedRestaurant()
@@ -223,11 +257,19 @@ void AdminPanel::disapproveSelectedRestaurant()
         QMessageBox::warning(this, "No Selection", "Please select a restaurant first!");
         return;
     }
-    if (dbHandler->disapproveRestaurant(userId)) {
+
+    QSqlQuery q(QSqlDatabase::database("main_connection"));
+    q.prepare("UPDATE users SET is_approved = 0 WHERE id = ? AND role = 'restaurant'");
+    q.addBindValue(userId);
+
+    if (q.exec()) {
         QMessageBox::information(this, "Disapproved", "Restaurant disapproved successfully.");
         loadUsers();
+    } else {
+        QMessageBox::warning(this, "Error", "Failed to disapprove restaurant.");
     }
 }
+
 
 // ================== Orders ==================
 
@@ -241,8 +283,10 @@ void AdminPanel::loadOrders()
     headers << "id" << "customer_id" << "restaurant_id" << "status" << "total_price" << "created_at";
     tableOrders->setColumnCount(headers.size());
     tableOrders->setHorizontalHeaderLabels(headers);
+    tableOrders->horizontalHeader()->setStretchLastSection(true);
 
-    QSqlQuery q = dbHandler->readAllOrders();
+
+    QSqlQuery q(QSqlDatabase::database("main_connection"));
     int row = 0;
 
     while (q.next()) {
