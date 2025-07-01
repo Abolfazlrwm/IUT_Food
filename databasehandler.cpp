@@ -27,10 +27,10 @@ bool DataBaseHandler::openDataBase(const QString& fileName) {
 bool DataBaseHandler::createTables() {
     QSqlQuery q(db);
 
-    // ساخت تمام جداول لازم از هر دو بخش
+    // ساخت تمام جداول لازم با ستون‌های کامل از هر دو بخش
     q.exec("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, role TEXT, is_active INTEGER DEFAULT 1, is_approved INTEGER DEFAULT 0, address TEXT)");
     q.exec("CREATE TABLE IF NOT EXISTS restaurants (id INTEGER PRIMARY KEY, name TEXT, type TEXT, location TEXT, price_range INTEGER)");
-    q.exec("CREATE TABLE IF NOT EXISTS menu_items (id INTEGER PRIMARY KEY, restaurant_id INTEGER, name TEXT, description TEXT, price REAL, category TEXT, FOREIGN KEY(restaurant_id) REFERENCES restaurants(id))");
+    q.exec("CREATE TABLE IF NOT EXISTS menu_items (id INTEGER PRIMARY KEY AUTOINCREMENT, restaurant_id INTEGER, name TEXT, description TEXT, price REAL, category TEXT, FOREIGN KEY(restaurant_id) REFERENCES restaurants(id))");
     q.exec("CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY, customer_id INTEGER, restaurant_id INTEGER, status TEXT, total_price REAL, created_at TEXT, review_submitted INTEGER DEFAULT 0)");
     q.exec("CREATE TABLE IF NOT EXISTS order_items (id INTEGER PRIMARY KEY, order_id INTEGER, menu_item_id INTEGER, quantity INTEGER, price_per_item REAL, FOREIGN KEY(order_id) REFERENCES orders(id), FOREIGN KEY(menu_item_id) REFERENCES menu_items(id))");
 

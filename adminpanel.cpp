@@ -1,51 +1,43 @@
 #include "AdminPanel.h"
 
-// ================== Constructor ==================
 AdminPanel::AdminPanel(QWidget *parent)
     : QMainWindow(parent)
 {
-    setupUI();          // Build all tabs and UI
-    setupConnections(); // Connect buttons to slots
-    loadUsers();        // Load initial user data
-    loadOrders();       // Load initial orders
+    setupUI();
+    setupConnections();
+    loadUsers();
+    loadOrders();
 }
 
 AdminPanel::~AdminPanel() {}
 
-// ================== UI SETUP ==================
 void AdminPanel::setupUI()
 {
-    // Central widget and main layout
     QWidget* central = new QWidget(this);
     QVBoxLayout* mainLayout = new QVBoxLayout(central);
-
-    // Main QTabWidget
     tabWidget = new QTabWidget(central);
     mainLayout->addWidget(tabWidget);
 
-    // Build individual tabs
     setupUserTab();
     setupOrdersTab();
     setupReportsTab();
 
-    // Add tabs to tabWidget
     tabWidget->addTab(userTab, "User Management");
     tabWidget->addTab(ordersTab, "Orders");
     tabWidget->addTab(reportsTab, "Reports");
 
     setCentralWidget(central);
+    setWindowTitle("Admin Panel");
+    setMinimumSize(800, 600);
 }
 
 void AdminPanel::setupUserTab()
 {
     userTab = new QWidget();
     QVBoxLayout* layout = new QVBoxLayout(userTab);
-
-    // User table
     tableUsers = new QTableWidget();
     layout->addWidget(tableUsers);
 
-    // Buttons
     QHBoxLayout* buttonLayout = new QHBoxLayout();
     btnBlock = new QPushButton("Block");
     btnUnblock = new QPushButton("Unblock");
@@ -54,14 +46,12 @@ void AdminPanel::setupUserTab()
     btnDisapprove = new QPushButton("Disapprove Restaurant");
     btnRefreshUsers = new QPushButton("Refresh");
 
-    // Add buttons to layout
     buttonLayout->addWidget(btnBlock);
     buttonLayout->addWidget(btnUnblock);
     buttonLayout->addWidget(btnDelete);
     buttonLayout->addWidget(btnApprove);
     buttonLayout->addWidget(btnDisapprove);
     buttonLayout->addWidget(btnRefreshUsers);
-
     layout->addLayout(buttonLayout);
 }
 
@@ -69,11 +59,8 @@ void AdminPanel::setupOrdersTab()
 {
     ordersTab = new QWidget();
     QVBoxLayout* layout = new QVBoxLayout(ordersTab);
-
-    // Orders table and refresh button
     tableOrders = new QTableWidget();
     btnRefreshOrders = new QPushButton("Refresh Orders");
-
     layout->addWidget(tableOrders);
     layout->addWidget(btnRefreshOrders);
 }
@@ -140,22 +127,25 @@ void AdminPanel::loadUsers()
     tableUsers->setRowCount(0);
 
     QStringList headers;
-    headers << "ID" << "Username" << "Role" << "is_active" << "is_approved";
+    headers << "ID" << "Username" << "Role" << "Active" << "Approved";
     tableUsers->setColumnCount(headers.size());
     tableUsers->setHorizontalHeaderLabels(headers);
     tableUsers->horizontalHeader()->setStretchLastSection(true);
 
+    QSqlQuery q("SELECT * FROM users", QSqlDatabase::database("main_connection"));
+    if (!q.isActive()) {
+        qDebug() << "Load Users Query failed:" << q.lastError().text();
+        return;
+    }
 
-    QSqlQuery q(QSqlDatabase::database("main_connection"));
     int row = 0;
-
     while (q.next()) {
         tableUsers->insertRow(row);
         tableUsers->setItem(row, 0, new QTableWidgetItem(q.value("id").toString()));
         tableUsers->setItem(row, 1, new QTableWidgetItem(q.value("username").toString()));
         tableUsers->setItem(row, 2, new QTableWidgetItem(q.value("role").toString()));
-        tableUsers->setItem(row, 3, new QTableWidgetItem(q.value("is_active").toString()));
-        tableUsers->setItem(row, 4, new QTableWidgetItem(q.value("is_approved").toString()));
+        tableUsers->setItem(row, 3, new QTableWidgetItem(q.value("is_active").toBool() ? "Yes" : "No"));
+        tableUsers->setItem(row, 4, new QTableWidgetItem(q.value("is_approved").toBool() ? "Yes" : "No"));
         row++;
     }
     tableUsers->resizeColumnsToContents();
@@ -280,15 +270,18 @@ void AdminPanel::loadOrders()
     tableOrders->setRowCount(0);
 
     QStringList headers;
-    headers << "id" << "customer_id" << "restaurant_id" << "status" << "total_price" << "created_at";
+    headers << "ID" << "Customer ID" << "Restaurant ID" << "Status" << "Total Price" << "Created At";
     tableOrders->setColumnCount(headers.size());
     tableOrders->setHorizontalHeaderLabels(headers);
     tableOrders->horizontalHeader()->setStretchLastSection(true);
 
+    QSqlQuery q("SELECT * FROM orders", QSqlDatabase::database("main_connection"));
+    if (!q.isActive()) {
+        qDebug() << "Load Orders Query failed:" << q.lastError().text();
+        return;
+    }
 
-    QSqlQuery q(QSqlDatabase::database("main_connection"));
     int row = 0;
-
     while (q.next()) {
         tableOrders->insertRow(row);
         tableOrders->setItem(row, 0, new QTableWidgetItem(q.value("id").toString()));
