@@ -293,3 +293,11 @@ bool DataBaseHandler::updateUserDetails(int userId, const QString& newUsername, 
     }
     return true;
 }
+
+bool DataBaseHandler::markOrderAsReviewed(int orderId)
+{
+    QSqlQuery q(db);
+    q.prepare("UPDATE orders SET review_submitted = 1 WHERE id = ?");
+    q.addBindValue(orderId);
+    return q.exec();
+}
