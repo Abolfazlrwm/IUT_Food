@@ -9,14 +9,14 @@ CONFIG += c++17
 #DEFINES += QT_DISABLE_DEPRECATED_BEFORE=0x060000    # disables all the APIs deprecated before Qt 6.0.0
 
 SOURCES += \
-    ../../IUT_Food/databasehandler.cpp \
+    ../../../IUT_Food/databasehandler.cpp \
     connectionhandler.cpp \
     main.cpp \
     mainwindow.cpp \
     server.cpp
 
 HEADERS += \
-    ../../IUT_Food/databasehandler.h \
+    ../../../IUT_Food/databasehandler.h \
     connectionhandler.h \
     mainwindow.h \
     server.h

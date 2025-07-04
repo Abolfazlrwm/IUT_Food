@@ -10,7 +10,7 @@
 int main(int argc, char *argv[])
 {
     QApplication a(argc, argv);
-
+    NetworkManager::getInstance()->connectToServer("127.0.0.1", 1234); // IP & PORT
     // ۱. مسیر دقیق کنار فایل اجرایی برنامه را پیدا می‌کنیم
     QString dbPath = QCoreApplication::applicationDirPath() + "/iut_food_data.db";
 

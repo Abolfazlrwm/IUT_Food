@@ -5,7 +5,7 @@
 #include <QTcpSocket>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include "../../IUT_Food/databasehandler.h"
+#include "../../databasehandler.h"
 
 class ConnectionHandler : public QObject
 {

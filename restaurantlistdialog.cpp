@@ -21,6 +21,17 @@ RestaurantListDialog::RestaurantListDialog(const QString& name, const QString& t
     ui->setupUi(this);
     setWindowTitle("نتایج جستجو");
 
+    // Server
+    QJsonObject req;
+    req["command"] = "get_restaurants";
+    req["name"] = m_nameFilter;
+    req["type"] = m_typeFilter;
+    req["location"] = m_locationFilter;
+    NetworkManager::getInstance()->sendJson(req);
+    connect(NetworkManager::getInstance(), &NetworkManager::restaurantsReceived, this, &RestaurantListDialog::onRestaurantsReceived);
+
+
+
     // ۱. ساخت مدل و نماینده و تنظیم آنها روی QListView
     m_model = new RestaurantModel(this);
     RestaurantDelegate *delegate = new RestaurantDelegate(this);

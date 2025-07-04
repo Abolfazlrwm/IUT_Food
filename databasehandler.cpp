@@ -165,6 +165,14 @@ QString DataBaseHandler::getUserRole(const QString& username) {
     return "";
 }
 
+bool DataBaseHandler::deleteUser(int userId) {
+    QSqlQuery q(db);
+    q.prepare("DELETE FROM users WHERE id = ?");
+    q.addBindValue(userId);
+    return q.exec();
+}
+
+
 // Orders
 
 

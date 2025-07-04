@@ -191,6 +191,122 @@ void ConnectionHandler::processCommand(const QJsonObject& request)
         response["success"] = ok;
         sendJson(response);
     }
+    else if (command == "get_users") {
+        QSqlQuery q = m_dbHandler->readAllUsers();
+        QJsonArray arr;
+        while (q.next()) {
+            QJsonObject u;
+            u["id"] = q.value("id").toInt();
+            u["username"] = q.value("username").toString();
+            u["role"] = q.value("role").toString();
+            u["is_active"] = q.value("is_active").toBool();
+            u["is_approved"] = q.value("is_approved").toBool();
+            arr.append(u);
+        }
+        response["data"] = arr;
+        sendJson(response);
+    }
+    else if (command == "get_orders") {
+        QSqlQuery q = m_dbHandler->readAllOrders();
+        QJsonArray arr;
+        while (q.next()) {
+            QJsonObject o;
+            o["id"] = q.value("id").toInt();
+            o["customer_id"] = q.value("customer_id").toInt();
+            o["restaurant_id"] = q.value("restaurant_id").toInt();
+            o["status"] = q.value("status").toString();
+            o["total_price"] = q.value("total_price").toDouble();
+            o["created_at"] = q.value("created_at").toString();
+            arr.append(o);
+        }
+        response["data"] = arr;
+        sendJson(response);
+    }
+    else if (command == "delete_user") {
+        int userId = request["user_id"].toInt();
+        bool ok = m_dbHandler->deleteUser(userId);
+        response["success"] = ok;
+        sendJson(response);
+    }
+
+    // RESTAURANT
+    else if (command == "add_menu_item") {
+        int restaurantId = request["restaurant_id"].toInt();
+        QString name = request["name"].toString();
+        double price = request["price"].toDouble();
+        QString description = request["description"].toString();
+
+        bool ok = m_dbHandler->addFoodItem(restaurantId, name, price, description);
+        response["success"] = ok;
+        sendJson(response);
+    }
+    else if (command == "update_menu_item") {
+        int foodId = request["id"].toInt();
+        QString name = request["name"].toString();
+        double price = request["price"].toDouble();
+        QString description = request["description"].toString();
+
+        bool ok = m_dbHandler->updateFoodItem(foodId, name, price, description);
+        response["success"] = ok;
+        sendJson(response);
+    }
+    else if (command == "delete_menu_item") {
+        int foodId = request["id"].toInt();
+
+        bool ok = m_dbHandler->deleteFoodItem(foodId);
+        response["success"] = ok;
+        sendJson(response);
+    }
+
+    else if (command == "get_menu_items_for_restaurant") {
+        int restaurantId = request["restaurant_id"].toInt();
+
+        QJsonArray data;
+        QSqlQuery query = m_dbHandler->getMenuItemsForRestaurant(restaurantId);
+        while (query.next()) {
+            QJsonObject item;
+            item["id"] = query.value("id").toInt();
+            item["name"] = query.value("name").toString();
+            item["price"] = query.value("price").toDouble();
+            item["description"] = query.value("description").toString();
+            data.append(item);
+        }
+
+        response["success"] = true;
+        response["data"] = data;
+        sendJson(response);
+    }
+
+    else if (command == "get_orders_for_restaurant") {
+        int restaurantId = request["restaurant_id"].toInt();
+
+        QJsonArray orders;
+        QSqlQuery query = m_dbHandler->getOrdersForRestaurant(restaurantId);
+        while (query.next()) {
+            QJsonObject order;
+            order["id"] = query.value("id").toInt();
+            order["customer_username"] = query.value("username").toString();
+            order["status"] = query.value("status").toString();
+            order["total_price"] = query.value("total_price").toDouble();
+            order["created_at"] = query.value("created_at").toString();
+            orders.append(order);
+        }
+
+        response["success"] = true;
+        response["data"] = orders;
+        sendJson(response);
+    }
+
+    else if (command == "update_order_status") {
+        int orderId = request["order_id"].toInt();
+        QString newStatus = request["new_status"].toString();
+
+        bool ok = m_dbHandler->updateOrderStatus(orderId, newStatus);
+        response["success"] = ok;
+        sendJson(response);
+    }
+
+
 
 
     // ------------------- UNKNOWN COMMAND -------------------

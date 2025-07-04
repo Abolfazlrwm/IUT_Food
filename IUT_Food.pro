@@ -3,6 +3,7 @@ QT       += core gui widgets sql network charts
 CONFIG   += c++11
 
 SOURCES += \
+    adminnetworkmanager.cpp \
     main.cpp \
     databasehandler.cpp \
     adminpanel.cpp \
@@ -22,6 +23,7 @@ SOURCES += \
     shoppingcartpopup.cpp
 
 HEADERS += \
+    adminnetworkmanager.h \
     databasehandler.h \
     adminpanel.h \
     mainwindow.h \
@@ -41,8 +43,6 @@ HEADERS += \
     shoppingcartpopup.h
 
 FORMS += \
-    adminpanel.ui \
-    adminpanel.ui \
     mainwindow.ui \
     client.ui \
     checkoutdialog.ui \

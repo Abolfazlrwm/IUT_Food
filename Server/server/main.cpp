@@ -1,7 +1,7 @@
 #include <QCoreApplication>
 #include <QDebug>
 #include "server.h"
-#include "../../IUT_Food/databasehandler.h"
+#include "../../../IUT_Food/databasehandler.h"
 
 int main(int argc, char *argv[])
 {
