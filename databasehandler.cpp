@@ -170,6 +170,14 @@ QString DataBaseHandler::getUserRole(const QString& username) {
     return "";
 }
 
+bool DataBaseHandler::deleteUser(int userId) {
+    QSqlQuery q(db);
+    q.prepare("DELETE FROM users WHERE id = ?");
+    q.addBindValue(userId);
+    return q.exec();
+}
+
+
 // Orders
 
 
@@ -308,4 +316,12 @@ bool DataBaseHandler::updateUserDetails(int userId, const QString& newUsername, 
         return false;
     }
     return true;
+}
+
+bool DataBaseHandler::markOrderAsReviewed(int orderId)
+{
+    QSqlQuery q(db);
+    q.prepare("UPDATE orders SET review_submitted = 1 WHERE id = ?");
+    q.addBindValue(orderId);
+    return q.exec();
 }

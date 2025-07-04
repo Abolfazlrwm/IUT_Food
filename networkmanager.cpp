@@ -51,6 +51,68 @@ void NetworkManager::onReadyRead()
         else if(messageType == "new_chat_message_notification"){
             emit newMessageReceived(obj["data"].toObject());
         }
+
+        else if (messageType == "menu_response") {
+            emit menuReceived(obj["data"].toArray());
+        }
+        else if (messageType == "orders_response") {
+            emit ordersReceived(obj["data"].toArray());
+        }
+        else if (messageType == "operation_result") {
+            bool success = obj["success"].toBool();
+            QString msg = obj["message"].toString();
+            emit operationResult(success, msg);
+        }
+
         // ... سایر انواع پاسخ‌ها و اعلان‌ها ...
     }
+}
+
+void NetworkManager::requestMenu(int restaurantId) {
+    QJsonObject req;
+    req["command"] = "get_menu";
+    req["restaurant_id"] = restaurantId;
+    sendJson(req);
+}
+
+void NetworkManager::requestOrders(int restaurantId) {
+    QJsonObject req;
+    req["command"] = "get_orders";
+    req["restaurant_id"] = restaurantId;
+    sendJson(req);
+}
+
+void NetworkManager::addFoodItem(int restaurantId, const QString& name, double price, const QString& description) {
+    QJsonObject req;
+    req["command"] = "add_food";
+    req["restaurant_id"] = restaurantId;
+    req["name"] = name;
+    req["price"] = price;
+    req["description"] = description;
+    sendJson(req);
+}
+
+void NetworkManager::editFoodItem(int foodId, const QString& name, double price, const QString& description) {
+    QJsonObject req;
+    req["command"] = "edit_food";
+    req["food_id"] = foodId;
+    req["name"] = name;
+    req["price"] = price;
+    req["description"] = description;
+    sendJson(req);
+}
+
+void NetworkManager::deleteFoodItem(int foodId) {
+    QJsonObject req;
+    req["command"] = "delete_food";
+    req["food_id"] = foodId;
+    sendJson(req);
+}
+
+void NetworkManager::updateOrderStatus(int orderId, const QString& newStatus) {
+    QJsonObject req;
+    req["command"] = "update_order_status";
+    req["order_id"] = orderId;
+    req["status"] = newStatus;
+    sendJson(req);
 }

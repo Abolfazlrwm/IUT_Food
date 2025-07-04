@@ -42,6 +42,7 @@ public:
     bool updateOrderStatus(int orderId, const QString& newStatus);
     bool markOrderAsReviewed(int orderId);
 
+
     // --- توابع مدیریت کش ---
     bool clearRestaurantsTable();
     bool addRestaurant(const QJsonObject& restaurantData);

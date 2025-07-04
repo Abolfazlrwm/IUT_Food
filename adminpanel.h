@@ -1,6 +1,7 @@
 #ifndef ADMINPANEL_H
 #define ADMINPANEL_H
 
+#include "adminnetworkmanager.h"
 #include <QMainWindow>
 #include <QTableWidget>
 #include <QPushButton>
@@ -38,6 +39,7 @@ private slots:
     void approveSelectedRestaurant();
     void disapproveSelectedRestaurant();
     void generateChart();
+    void onServerResponse(const QJsonObject& response);
 
 private:
     void setupUI();
@@ -71,6 +73,9 @@ private:
     QComboBox *comboChartType;
     QPushButton *btnGenerateChart;
     QChartView *chartView;
+
+    AdminNetworkManager* m_network;
+
 };
 
 #endif // ADMINPANEL_H

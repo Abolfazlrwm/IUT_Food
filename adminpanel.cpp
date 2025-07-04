@@ -1,4 +1,4 @@
-#include "AdminPanel.h"
+#include "adminpanel.h"
 
 AdminPanel::AdminPanel(QWidget *parent)
     : QMainWindow(parent)
@@ -7,6 +7,13 @@ AdminPanel::AdminPanel(QWidget *parent)
     setupConnections();
     loadUsers();
     loadOrders();
+
+    // Connection to server
+            m_network = new AdminNetworkManager(this);
+    connect(m_network, &AdminNetworkManager::serverResponse,
+            this, &AdminPanel::onServerResponse);
+
+    m_network->connectToServer("127.0.0.1", 5555);
 }
 
 AdminPanel::~AdminPanel() {}
@@ -111,11 +118,13 @@ void AdminPanel::setupConnections()
 // ================== Helpers ==================
 
 // Get the ID of the selected user in the table
-int AdminPanel::getSelectedUserId() const
+int AdminPanel::getSelectedUserId () const
 {
-    int row = tableUsers->currentRow();
-    if (row < 0) return -1;
-    return tableUsers->item(row, 0)->text().toInt();
+    if (!tableUsers) return -1;
+    QModelIndex index = tableUsers->currentIndex();
+    if (!index.isValid()) return -1;
+
+    return index.sibling(index.row(), 0).data(Qt::UserRole).toInt();
 }
 
 // ================== User Management ==================
@@ -123,33 +132,11 @@ int AdminPanel::getSelectedUserId() const
 // Load users from database into the table
 void AdminPanel::loadUsers()
 {
-    tableUsers->clearContents();
-    tableUsers->setRowCount(0);
-
-    QStringList headers;
-    headers << "ID" << "Username" << "Role" << "Active" << "Approved";
-    tableUsers->setColumnCount(headers.size());
-    tableUsers->setHorizontalHeaderLabels(headers);
-    tableUsers->horizontalHeader()->setStretchLastSection(true);
-
-    QSqlQuery q("SELECT * FROM users", QSqlDatabase::database("main_connection"));
-    if (!q.isActive()) {
-        qDebug() << "Load Users Query failed:" << q.lastError().text();
-        return;
-    }
-
-    int row = 0;
-    while (q.next()) {
-        tableUsers->insertRow(row);
-        tableUsers->setItem(row, 0, new QTableWidgetItem(q.value("id").toString()));
-        tableUsers->setItem(row, 1, new QTableWidgetItem(q.value("username").toString()));
-        tableUsers->setItem(row, 2, new QTableWidgetItem(q.value("role").toString()));
-        tableUsers->setItem(row, 3, new QTableWidgetItem(q.value("is_active").toBool() ? "Yes" : "No"));
-        tableUsers->setItem(row, 4, new QTableWidgetItem(q.value("is_approved").toBool() ? "Yes" : "No"));
-        row++;
-    }
-    tableUsers->resizeColumnsToContents();
+    QJsonObject request;
+    request["command"] = "get_users";
+    m_network->sendJson(request);
 }
+
 
 // Block selected user
 void AdminPanel::blockSelectedUser()
@@ -160,17 +147,12 @@ void AdminPanel::blockSelectedUser()
         return;
     }
 
-    QSqlQuery q(QSqlDatabase::database("main_connection"));
-    q.prepare("UPDATE users SET is_active = 0 WHERE id = ?");
-    q.addBindValue(userId);
-
-    if (q.exec()) {
-        QMessageBox::information(this, "Success", "User blocked successfully.");
-        loadUsers();
-    } else {
-        QMessageBox::warning(this, "Error", "Failed to block user.");
-    }
+    QJsonObject request;
+    request["command"] = "block_user";
+    request["user_id"] = userId;
+    m_network->sendJson(request);
 }
+
 
 
 // Unblock selected user
@@ -181,18 +163,12 @@ void AdminPanel::unblockSelectedUser()
         QMessageBox::warning(this, "No Selection", "Please select a user first!");
         return;
     }
-
-    QSqlQuery q(QSqlDatabase::database("main_connection"));
-    q.prepare("UPDATE users SET is_active = 1 WHERE id = ?");
-    q.addBindValue(userId);
-
-    if (q.exec()) {
-        QMessageBox::information(this, "Success", "User unblocked successfully.");
-        loadUsers();
-    } else {
-        QMessageBox::warning(this, "Error", "Failed to unblock user.");
-    }
+    QJsonObject request;
+    request["command"] = "unblock_user";
+    request["user_id"] = userId;
+    m_network->sendJson(request);
 }
+
 
 
 // Delete selected user
@@ -200,21 +176,16 @@ void AdminPanel::deleteSelectedUser()
 {
     int userId = getSelectedUserId();
     if (userId < 0) {
-        QMessageBox::warning(this, "No Selection", "Please select a user first!");
+        QMessageBox::warning(this, "No user is selected", "Select a user first!");
         return;
     }
 
-    QSqlQuery q(QSqlDatabase::database("main_connection"));
-    q.prepare("DELETE FROM users WHERE id = ?");
-    q.addBindValue(userId);
-
-    if (q.exec()) {
-        QMessageBox::information(this, "Deleted", "User deleted successfully.");
-        loadUsers();
-    } else {
-        QMessageBox::warning(this, "Error", "Failed to delete user.");
-    }
+    QJsonObject request;
+    request["command"] = "delete_user";
+    request["user_id"] = userId;
+    m_network->sendJson(request);
 }
+
 
 
 // Approve restaurant
@@ -222,21 +193,16 @@ void AdminPanel::approveSelectedRestaurant()
 {
     int userId = getSelectedUserId();
     if (userId < 0) {
-        QMessageBox::warning(this, "No Selection", "Please select a restaurant first!");
+        QMessageBox::warning(this, "No restaurant is selected", "Please select a restaurant first!");
         return;
     }
 
-    QSqlQuery q(QSqlDatabase::database("main_connection"));
-    q.prepare("UPDATE users SET is_approved = 1 WHERE id = ? AND role = 'restaurant'");
-    q.addBindValue(userId);
-
-    if (q.exec()) {
-        QMessageBox::information(this, "Approved", "Restaurant approved successfully.");
-        loadUsers();
-    } else {
-        QMessageBox::warning(this, "Error", "Failed to approve restaurant.");
-    }
+    QJsonObject request;
+    request["command"] = "approve_restaurant";
+    request["user_id"] = userId;
+    m_network->sendJson(request);
 }
+
 
 
 // Disapprove restaurant
@@ -244,21 +210,16 @@ void AdminPanel::disapproveSelectedRestaurant()
 {
     int userId = getSelectedUserId();
     if (userId < 0) {
-        QMessageBox::warning(this, "No Selection", "Please select a restaurant first!");
+        QMessageBox::warning(this, "No restaurant is selected", "Please select a restaurant first!!");
         return;
     }
 
-    QSqlQuery q(QSqlDatabase::database("main_connection"));
-    q.prepare("UPDATE users SET is_approved = 0 WHERE id = ? AND role = 'restaurant'");
-    q.addBindValue(userId);
-
-    if (q.exec()) {
-        QMessageBox::information(this, "Disapproved", "Restaurant disapproved successfully.");
-        loadUsers();
-    } else {
-        QMessageBox::warning(this, "Error", "Failed to disapprove restaurant.");
-    }
+    QJsonObject request;
+    request["command"] = "disapprove_restaurant";
+    request["user_id"] = userId;
+    m_network->sendJson(request);
 }
+
 
 
 // ================== Orders ==================
@@ -266,34 +227,11 @@ void AdminPanel::disapproveSelectedRestaurant()
 // Load orders from database
 void AdminPanel::loadOrders()
 {
-    tableOrders->clearContents();
-    tableOrders->setRowCount(0);
-
-    QStringList headers;
-    headers << "ID" << "Customer ID" << "Restaurant ID" << "Status" << "Total Price" << "Created At";
-    tableOrders->setColumnCount(headers.size());
-    tableOrders->setHorizontalHeaderLabels(headers);
-    tableOrders->horizontalHeader()->setStretchLastSection(true);
-
-    QSqlQuery q("SELECT * FROM orders", QSqlDatabase::database("main_connection"));
-    if (!q.isActive()) {
-        qDebug() << "Load Orders Query failed:" << q.lastError().text();
-        return;
-    }
-
-    int row = 0;
-    while (q.next()) {
-        tableOrders->insertRow(row);
-        tableOrders->setItem(row, 0, new QTableWidgetItem(q.value("id").toString()));
-        tableOrders->setItem(row, 1, new QTableWidgetItem(q.value("customer_id").toString()));
-        tableOrders->setItem(row, 2, new QTableWidgetItem(q.value("restaurant_id").toString()));
-        tableOrders->setItem(row, 3, new QTableWidgetItem(q.value("status").toString()));
-        tableOrders->setItem(row, 4, new QTableWidgetItem(q.value("total_price").toString()));
-        tableOrders->setItem(row, 5, new QTableWidgetItem(q.value("created_at").toString()));
-        row++;
-    }
-    tableOrders->resizeColumnsToContents();
+    QJsonObject request;
+    request["command"] = "get_orders";
+    m_network->sendJson(request);
 }
+
 
 // ================== Reports ==================
 
@@ -379,3 +317,89 @@ void AdminPanel::showActiveRestaurantsChart()
 
     chartView->setChart(chart);
 }
+
+void AdminPanel::onServerResponse(const QJsonObject& response)
+{
+    QString command = response["command"].toString();
+
+    // ---------------------- دریافت لیست کاربران ----------------------
+    if (command == "get_users") {
+        QJsonArray users = response["data"].toArray();
+
+        tableUsers->clearContents();
+        tableUsers->setRowCount(0);
+        tableUsers->setColumnCount(5);
+        tableUsers->setHorizontalHeaderLabels({"ID", "Username", "Role", "Active", "Approved"});
+
+        for (int i = 0; i < users.size(); ++i) {
+            QJsonObject u = users[i].toObject();
+            tableUsers->insertRow(i);
+            tableUsers->setItem(i, 0, new QTableWidgetItem(QString::number(u["id"].toInt())));
+            tableUsers->setItem(i, 1, new QTableWidgetItem(u["username"].toString()));
+            tableUsers->setItem(i, 2, new QTableWidgetItem(u["role"].toString()));
+            tableUsers->setItem(i, 3, new QTableWidgetItem(u["is_active"].toBool() ? "Yes" : "No"));
+            tableUsers->setItem(i, 4, new QTableWidgetItem(u["is_approved"].toBool() ? "Yes" : "No"));
+        }
+
+        tableUsers->resizeColumnsToContents();
+    }
+
+    // ---------------------- دریافت لیست سفارش‌ها ----------------------
+    else if (command == "get_orders") {
+        QJsonArray orders = response["data"].toArray();
+
+        tableOrders->clearContents();
+        tableOrders->setRowCount(0);
+        tableOrders->setColumnCount(6);
+        tableOrders->setHorizontalHeaderLabels({"ID", "Customer ID", "Restaurant ID", "Status", "Total Price", "Created At"});
+
+        for (int i = 0; i < orders.size(); ++i) {
+            QJsonObject o = orders[i].toObject();
+            tableOrders->insertRow(i);
+            tableOrders->setItem(i, 0, new QTableWidgetItem(QString::number(o["id"].toInt())));
+            tableOrders->setItem(i, 1, new QTableWidgetItem(QString::number(o["customer_id"].toInt())));
+            tableOrders->setItem(i, 2, new QTableWidgetItem(QString::number(o["restaurant_id"].toInt())));
+            tableOrders->setItem(i, 3, new QTableWidgetItem(o["status"].toString()));
+            tableOrders->setItem(i, 4, new QTableWidgetItem(QString::number(o["total_price"].toDouble())));
+            tableOrders->setItem(i, 5, new QTableWidgetItem(o["created_at"].toString()));
+        }
+
+        tableOrders->resizeColumnsToContents();
+    }
+
+    // ---------------------- پاسخ حذف کاربر ----------------------
+    else if (command == "delete_user") {
+        if (response["success"].toBool()) {
+            QMessageBox::information(this, "حذف شد", "کاربر با موفقیت حذف شد.");
+            loadUsers(); // رفرش جدول کاربران
+        } else {
+            QMessageBox::warning(this, "خطا", "خطا در حذف کاربر.");
+        }
+    }
+
+    // ---------------------- پاسخ بلاک / آنبلاک ----------------------
+    else if (command == "block_user") {
+        QMessageBox::information(this, "نتیجه", response["success"].toBool() ? "کاربر مسدود شد." : "عملیات مسدودسازی شکست خورد.");
+        loadUsers();
+    }
+    else if (command == "unblock_user") {
+        QMessageBox::information(this, "نتیجه", response["success"].toBool() ? "کاربر آزاد شد." : "عملیات آزادسازی شکست خورد.");
+        loadUsers();
+    }
+
+    // ---------------------- تأیید / رد رستوران ----------------------
+    else if (command == "approve_restaurant") {
+        QMessageBox::information(this, "نتیجه", response["success"].toBool() ? "رستوران تأیید شد." : "خطا در تأیید رستوران.");
+        loadUsers();
+    }
+    else if (command == "disapprove_restaurant") {
+        QMessageBox::information(this, "نتیجه", response["success"].toBool() ? "رستوران رد شد." : "خطا در رد رستوران.");
+        loadUsers();
+    }
+
+    // ---------------------- پاسخ‌های ناشناخته ----------------------
+    else {
+        qDebug() << "Unknown server response:" << response;
+    }
+}
+

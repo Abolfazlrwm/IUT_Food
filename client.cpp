@@ -174,19 +174,21 @@ void Client::onShowCheckoutDialog()
             emit historyChanged(); // به پنل پروفایل خبر می‌دهیم که تاریخچه آپدیت شده
         }
 
-        // ۳. درخواست را برای سرور ارسال می‌کنیم
-        orderData["command"] = "place_order";
-        // ... (منطق کامل کردن JSON برای سرور) ...
-        NetworkManager::getInstance()->sendJson(orderData);
+        // === ارسال سفارش به سرور ===
+        QJsonObject req = orderData;
+        req["command"] = "place_order";
 
-        QMessageBox::information(this, "ثبت شد", "سفارش شما با موفقیت ثبت شد.");
-        cart->clearCart();
-        m_cartPopup->updateContent();
-    }
-    else {
-        QMessageBox::information(this, "لغو شد", "ثبت سفارش لغو شد.");
-    }
-}
+        QJsonArray items;
+        for (const CartItem &item : cart->getItems()) {
+            QJsonObject obj = item.foodData;
+            obj["quantity"] = item.quantity;
+            items.append(obj);
+        }
+        req["items"] = items;
+
+        NetworkManager::getInstance()->sendJson(req);
+
+    }}
 // void Client::onRestaurantsReceived(const QJsonArray& restaurantsData)
 // {
 //     qDebug() << "Received" << restaurantsData.count() << "restaurants from server. Updating local cache...";
@@ -220,6 +222,7 @@ void Client::onOrderStatusUpdated(const QJsonObject& orderData)
     QMessageBox::information(this, "به‌روزرسانی سفارش",
                              QString("وضعیت سفارش شماره %1 به '%2' تغییر کرد.").arg(orderId).arg(newStatus));
 }
+
 
 void Client::onNewChatMessage(const QJsonObject& chatData)
 {
