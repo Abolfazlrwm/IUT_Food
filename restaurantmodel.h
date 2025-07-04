@@ -15,10 +15,10 @@ public:
     QVariant data(const QModelIndex &index, int role = Qt::DisplayRole) const override;
 
     void populateData(QSqlQuery &query);
-    Restaurant getRestaurant(int row) const;
+    RestaurantData getRestaurant(int row) const;
 
 private:
-    QList<Restaurant> m_restaurants;
+    QList<RestaurantData> m_restaurants;
 };
 
 #endif // RESTAURANTMODEL_H

@@ -2,6 +2,7 @@
 #include "ui_restaurantlistdialog.h"
 #include "databasehandler.h"
 #include "networkmanager.h" // <<< برای ارسال درخواست
+#include "restaurantmodel.h"
 #include "menudialog.h"
 #include "restaurantmodel.h"
 #include "restaurantdelegate.h"
@@ -86,7 +87,7 @@ void RestaurantListDialog::populateModelFromDb()
 
 void RestaurantListDialog::onRestaurantItemClicked(const QModelIndex &index)
 {
-    Restaurant restaurant = m_model->getRestaurant(index.row());
+    RestaurantData restaurant = m_model->getRestaurant(index.row());
     if (restaurant.id > 0) {
         MenuDialog menuDialog(restaurant.id, restaurant.name, m_dbHandler, this);
         connect(&menuDialog, &MenuDialog::itemAddedToCart, this, &RestaurantListDialog::itemAddedToCart);

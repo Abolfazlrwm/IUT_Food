@@ -22,7 +22,7 @@ RestaurantItemWidget::~RestaurantItemWidget()
 // این تابع، داده‌ها را به UI متصل می‌کند
 // در بالای فایل، include های imagecachemanager و QUrl را پاک کنید
 // ...
-void RestaurantItemWidget::setRestaurantData(const Restaurant &restaurant) {
+void RestaurantItemWidget::setRestaurantData(const RestaurantData &restaurant) {
     m_restaurantId = restaurant.id;
     ui->nameLabel->setText(restaurant.name);
     ui->typeLabel->setText(restaurant.type);

@@ -17,7 +17,7 @@ public:
     ~RestaurantItemWidget();
 
     // این تابع، اطلاعات یک رستوران را می‌گیرد و در UI نمایش می‌دهد
-    void setRestaurantData(const Restaurant &restaurant);
+    void setRestaurantData(const RestaurantData &restaurant);
 protected:
     void mousePressEvent(QMouseEvent *event) override;
 private:

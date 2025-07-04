@@ -17,7 +17,6 @@ DataBaseHandler& DataBaseHandler::instance() {
 
 // --- Constructor / Initialization ---
 DataBaseHandler::DataBaseHandler() {
-    // For singleton: only initialize once
     initializeDatabase();
 }
 
@@ -100,25 +99,31 @@ bool DataBaseHandler::createTables() {
                            "FOREIGN KEY(restaurant_id) REFERENCES users(id) ON DELETE CASCADE)");
 
     bool ok_orders = q.exec("CREATE TABLE IF NOT EXISTS orders ("
-                            "id INTEGER PRIMARY KEY,"
-                            "customer_id INTEGER,"
+                            "id INTEGER PRIMARY KEY AUTOINCREMENT,"
                             "restaurant_id INTEGER,"
-                            "status TEXT,"
+                            "customer_id INTEGER,"
                             "total_price REAL,"
+                            "status TEXT,"
                             "created_at TEXT,"
-                            "review_submitted INTEGER DEFAULT 0"
+                            "review_submitted INTEGER DEFAULT 0,"
+                            "FOREIGN KEY(restaurant_id) REFERENCES users(id),"
+                            "FOREIGN KEY(customer_id) REFERENCES users(id)"
                             ")");
 
     bool ok_order_items = q.exec("CREATE TABLE IF NOT EXISTS order_items ("
-                                 "id INTEGER PRIMARY KEY,"
+                                 "id INTEGER PRIMARY KEY AUTOINCREMENT,"
                                  "order_id INTEGER,"
-                                 "menu_item_id INTEGER,"
-                                 "quantity INTEGER,"
+                                 "food_id INTEGER,"
+                                 "quantity INTEGER DEFAULT 1,"
                                  "price_per_item REAL,"
-                                 "FOREIGN KEY(order_id) REFERENCES orders(id),"
-                                 "FOREIGN KEY(menu_item_id) REFERENCES menu_items(id))");
+                                 "FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE CASCADE,"
+                                 "FOREIGN KEY(food_id) REFERENCES foods(id)"
+                                 ")");
 
-    if(!ok_foods) {
+    if (!ok_order_items) {
+        qDebug() << "Order_items table creation failed:" << q.lastError().text();
+    }
+    if (!ok_foods) {
         qDebug() << "Foods table error:" << q.lastError().text();
     }
 
@@ -193,7 +198,6 @@ bool DataBaseHandler::loginUser(const QString& userName, const QString& password
     q.exec();
     return q.next();
 }
-// Extended login with role and id output
 bool DataBaseHandler::loginUser(const QString& userName, const QString& password, QString& role, int& userId) {
     QSqlQuery q(m_db);
     q.prepare("SELECT id, role FROM users WHERE username = ? AND password = ? AND is_active = 1 AND is_approved = 1");
@@ -482,6 +486,7 @@ bool DataBaseHandler::createNewOrder(const QJsonObject& orderData) {
     query.bindValue(":created_at", orderData["created_at"].toString());
     return query.exec();
 }
+
 bool DataBaseHandler::addOrderItems(int orderId, const QMap<int, CartItem>& items) {
     if (!m_db.transaction()) {
         qDebug() << "Failed to start transaction for adding order items.";
@@ -503,6 +508,7 @@ bool DataBaseHandler::addOrderItems(int orderId, const QMap<int, CartItem>& item
     }
     return m_db.commit();
 }
+
 bool DataBaseHandler::updateOrderStatus(int orderId, const QString& newStatus) {
     QSqlQuery query(m_db);
     query.prepare("UPDATE orders SET status = :status WHERE id = :order_id");
@@ -515,12 +521,75 @@ bool DataBaseHandler::updateOrderStatus(int orderId, const QString& newStatus) {
     qDebug() << "Successfully updated status for order ID" << orderId << "to" << newStatus;
     return true;
 }
+
 bool DataBaseHandler::markOrderAsReviewed(int orderId) {
     QSqlQuery q(m_db);
     q.prepare("UPDATE orders SET review_submitted = 1 WHERE id = ?");
     q.addBindValue(orderId);
     return q.exec();
 }
+
+// --- Create Test Order with food list ---
+bool DataBaseHandler::createTestOrder(int restaurantId, int customerId, const QVector<QPair<int, int>>& foodList)
+{
+    double totalPrice = 0.0;
+    m_db.transaction();
+
+    QSqlQuery q(m_db);
+    q.prepare("INSERT INTO orders (restaurant_id, customer_id, total_price, status, created_at) "
+              "VALUES (?, ?, 0, 'pending', datetime('now'))");
+    q.addBindValue(restaurantId);
+    q.addBindValue(customerId);
+    if (!q.exec()) {
+        qDebug() << "Create order failed:" << q.lastError();
+        m_db.rollback();
+        return false;
+    }
+
+    int orderId = q.lastInsertId().toInt();
+
+    for (const auto& pair : foodList) {
+        int foodId = pair.first;
+        int quantity = pair.second;
+
+        QSqlQuery foodQuery(m_db);
+        foodQuery.prepare("SELECT price FROM foods WHERE id = ?");
+        foodQuery.addBindValue(foodId);
+        if (!foodQuery.exec() || !foodQuery.next()) {
+            qDebug() << "Invalid food ID:" << foodId;
+            m_db.rollback();
+            return false;
+        }
+
+        double price = foodQuery.value(0).toDouble();
+        totalPrice += price * quantity;
+
+        QSqlQuery insertItem(m_db);
+        insertItem.prepare("INSERT INTO order_items (order_id, food_id, quantity) VALUES (?, ?, ?)");
+        insertItem.addBindValue(orderId);
+        insertItem.addBindValue(foodId);
+        insertItem.addBindValue(quantity);
+        if (!insertItem.exec()) {
+            qDebug() << "Insert order item failed:" << insertItem.lastError();
+            m_db.rollback();
+            return false;
+        }
+    }
+
+    QSqlQuery updateOrder(m_db);
+    updateOrder.prepare("UPDATE orders SET total_price = ? WHERE id = ?");
+    updateOrder.addBindValue(totalPrice);
+    updateOrder.addBindValue(orderId);
+    if (!updateOrder.exec()) {
+        qDebug() << "Failed to update total price:" << updateOrder.lastError();
+        m_db.rollback();
+        return false;
+    }
+
+    m_db.commit();
+    return true;
+}
+
 bool DataBaseHandler::createTestOrder(int restaurantId, int customerId, double totalPrice, const QString& status) {
     QSqlQuery q(m_db);
     q.prepare("INSERT INTO orders (restaurant_id, customer_id, total_price, status, created_at) "

@@ -4,7 +4,7 @@
 #include <QString>
 #include <QJsonObject>
 
-struct Restaurant {
+struct RestaurantData {
     int id;
     QString name;
     QString type;

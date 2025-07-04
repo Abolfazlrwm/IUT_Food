@@ -7,8 +7,8 @@ RestaurantDelegate::RestaurantDelegate(QObject *parent) : QStyledItemDelegate(pa
 
 void RestaurantDelegate::paint(QPainter *painter, const QStyleOptionViewItem &option, const QModelIndex &index) const
 {
-    if (index.data().canConvert<Restaurant>()) {
-        Restaurant restaurant = qvariant_cast<Restaurant>(index.data());
+    if (index.data().canConvert<RestaurantData>()) {
+        RestaurantData restaurant = qvariant_cast<RestaurantData>(index.data());
 
         RestaurantItemWidget widget;
         widget.setRestaurantData(restaurant);

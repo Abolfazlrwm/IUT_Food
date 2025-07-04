@@ -1,47 +1,33 @@
 #ifndef USER_H
 #define USER_H
 
+#include <QObject>
 #include <QString>
 
-class User
+class User : public QObject
 {
-public:
-    enum class Role {
-        Customer,
-        RestaurantOwner,
-        Admin
-    };
-
-private:
-    int id; // for times when duplication happenes
-    QString username;
-    QString password;
-    QString name;
-    Role role;
-
+    Q_OBJECT
 public:
     User(int id, const QString& username, const QString& password,
-         const QString& name, Role role);
-
-    // Destructor
-    virtual ~User() = default;
+         const QString& name, const QString& role, QObject* parent = nullptr);
 
     // Getters
     int getId() const;
     QString getUsername() const;
     QString getPassword() const;
     QString getName() const;
-    Role getRole() const;
+    QString getRole() const;
 
     // Setters
-    void setPassword(const QString& newPassword);
     void setName(const QString& newName);
-    void setRole(Role newRole);
+    void setPassword(const QString& newPassword);
 
-    // Utility
-    QString roleToString() const;
-    static QString roleToString(Role role);
-    static Role stringToRole(const QString& str);
+protected:
+    int id;
+    QString username;
+    QString password;
+    QString name;
+    QString role;
 };
 
-#endif
+#endif // USER_H

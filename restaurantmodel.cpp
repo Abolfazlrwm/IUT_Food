@@ -20,7 +20,7 @@ void RestaurantModel::populateData(QSqlQuery &query) {
     beginResetModel();
     m_restaurants.clear();
     while (query.next()) {
-        Restaurant r;
+        RestaurantData r;
         r.id = query.value("id").toInt();
         r.name = QString::fromUtf8(query.value("name").toByteArray());
         r.type = QString::fromUtf8(query.value("type").toByteArray());
@@ -31,8 +31,8 @@ void RestaurantModel::populateData(QSqlQuery &query) {
     qDebug() << m_restaurants.count() << "restaurants loaded into model.";
 }
 
-Restaurant RestaurantModel::getRestaurant(int row) const {
+RestaurantData RestaurantModel::getRestaurant(int row) const {
     if(row >= 0 && row < m_restaurants.count())
         return m_restaurants.at(row);
-    return Restaurant();
+    return RestaurantData();
 }

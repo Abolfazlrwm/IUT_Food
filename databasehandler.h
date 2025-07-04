@@ -78,6 +78,11 @@ public:
     bool addOrderItems(int orderId, const QMap<int, CartItem>& items);
     bool updateOrderStatus(int orderId, const QString& newStatus);
     bool markOrderAsReviewed(int orderId);
+
+    // --- Test/Create Order Overloads ---
+    // With food list (foodId, quantity)
+    bool createTestOrder(int restaurantId, int customerId, const QVector<QPair<int, int>>& foodList);
+    // With total price and status
     bool createTestOrder(int restaurantId, int customerId, double totalPrice, const QString& status);
 
     // --- Cache Management ---

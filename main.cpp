@@ -4,6 +4,7 @@
 #include <QApplication>
 #include <QMessageBox>
 #include "adminpanel.h"
+#include "restaurant.h"
 #include <QDir>
 #include <QDebug>
 
