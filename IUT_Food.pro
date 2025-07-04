@@ -1,4 +1,4 @@
-QT       += core gui widgets sql network charts
+QT += core gui widgets sql network charts
 
 CONFIG   += c++11
 
@@ -20,7 +20,9 @@ SOURCES += \
     restaurantlistdialog.cpp \
     restaurantmodel.cpp \
     shoppingcart.cpp \
-    shoppingcartpopup.cpp
+    shoppingcartpopup.cpp \
+    restaurant.cpp \
+    restaurantwindow.cpp
 
 HEADERS += \
     adminnetworkmanager.h \
@@ -40,7 +42,11 @@ HEADERS += \
     restaurantlistdialog.h \
     restaurantmodel.h \
     shoppingcart.h \
-    shoppingcartpopup.h
+    shoppingcartpopup.h \
+    fooditem.h \
+    order.h \
+    restaurant.h \
+    restaurantwindow.h
 
 FORMS += \
     mainwindow.ui \
