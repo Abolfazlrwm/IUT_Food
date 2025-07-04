@@ -4,48 +4,53 @@
 #include <QVariant>
 #include <QDebug>
 #include <QDir>
+#include "databasehandler.h"
+#include <QSqlError>
+#include <QDebug>
+#include <QVariant>
+#include <QDir>
+#include <QJsonArray>
+#include <QThread>
+
+#include "databasehandler.h"
+#include <QFont>
+#include <QSqlError>
+#include <QVariant>
+#include <QDebug>
+#include <QDir>
+#include <QJsonArray>
+#include <QThread>
+
+// --- کانستراکتور و توابع اصلی ---
 DataBaseHandler::DataBaseHandler() {
-    // استفاده از اتصال نام‌گذاری شده برای جلوگیری از تداخل
-    if (QSqlDatabase::contains("main_connection")) {
-        db = QSqlDatabase::database("main_connection");
+    QString connectionName = QString("db_connection_%1").arg(quintptr(QThread::currentThreadId()));
+    if (QSqlDatabase::contains(connectionName)) {
+        db = QSqlDatabase::database(connectionName);
     } else {
-        db = QSqlDatabase::addDatabase("QSQLITE", "main_connection");
+        db = QSqlDatabase::addDatabase("QSQLITE", connectionName);
     }
 }
+
 bool DataBaseHandler::openDataBase(const QString& fileName) {
     db.setDatabaseName(fileName);
     if (!db.open()) {
-        qDebug() << "DATABASE ERROR: Could not open database at path:" << fileName;
-        qDebug() << "Error:" << db.lastError().text();
+        qDebug() << "DATABASE ERROR: Could not open db:" << db.lastError().text();
         return false;
     }
     QSqlQuery pragmaQuery(db);
-    pragmaQuery.exec("PRAGMA encoding = 'UTF-8';");
-    qDebug() << "DATABASE SUCCESS: Connected to database at:" << QDir(fileName).absolutePath();
+    pragmaQuery.exec("PRAGMA foreign_keys = ON;");
     return true;
 }
+
 bool DataBaseHandler::createTables() {
     QSqlQuery q(db);
-
-    // ساخت تمام جداول لازم با ستون‌های کامل از هر دو بخش
-    q.exec("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY AUTOINCREMENT, username TEXT UNIQUE, password TEXT, role TEXT, is_active INTEGER DEFAULT 1, is_approved INTEGER DEFAULT 0, address TEXT)");
+    q.exec("CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT, password TEXT, role TEXT, is_active INTEGER, is_approved INTEGER, address TEXT)");
     q.exec("CREATE TABLE IF NOT EXISTS restaurants (id INTEGER PRIMARY KEY, name TEXT, type TEXT, location TEXT, price_range INTEGER)");
-    q.exec("CREATE TABLE IF NOT EXISTS menu_items (id INTEGER PRIMARY KEY AUTOINCREMENT, restaurant_id INTEGER, name TEXT, description TEXT, price REAL, category TEXT, FOREIGN KEY(restaurant_id) REFERENCES restaurants(id))");
+    q.exec("CREATE TABLE IF NOT EXISTS menu_items (id INTEGER PRIMARY KEY, restaurant_id INTEGER, name TEXT, description TEXT, price REAL, category TEXT, FOREIGN KEY(restaurant_id) REFERENCES restaurants(id))");
     q.exec("CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY, customer_id INTEGER, restaurant_id INTEGER, status TEXT, total_price REAL, created_at TEXT, review_submitted INTEGER DEFAULT 0)");
     q.exec("CREATE TABLE IF NOT EXISTS order_items (id INTEGER PRIMARY KEY, order_id INTEGER, menu_item_id INTEGER, quantity INTEGER, price_per_item REAL, FOREIGN KEY(order_id) REFERENCES orders(id), FOREIGN KEY(menu_item_id) REFERENCES menu_items(id))");
-
-    // اطمینان از وجود کاربر ادمین
-    QSqlQuery checkAdmin(db);
-    checkAdmin.prepare("SELECT COUNT(*) FROM users WHERE role = 'admin'");
-    if (checkAdmin.exec() && checkAdmin.next() && checkAdmin.value(0).toInt() == 0) {
-        QSqlQuery insertAdmin(db);
-        insertAdmin.prepare("INSERT INTO users (username, password, role) VALUES ('admin', 'admin', 'admin')");
-        insertAdmin.exec();
-    }
     return true;
 }
-
-
 // User CRUD
 bool DataBaseHandler::registerUser(const QString& userName, const QString& password, const QString& role) {
     QSqlQuery q(db);
@@ -222,15 +227,18 @@ QSqlQuery DataBaseHandler::getOrderDetails(int orderId) {
     return q;
 }
 
+// در فایل databasehandler.cpp
 QSqlQuery DataBaseHandler::getOrderItems(int orderId) {
-    QSqlQuery q;
+    QSqlQuery q(db); // <--- اصلاح کلیدی: اتصال دیتابیس (db) به کانستراکتور کوئری پاس داده شد.
     // با JOIN کردن، نام غذا را از جدول menu_items می‌گیریم
     q.prepare("SELECT mi.name, oi.quantity, oi.price_per_item "
               "FROM order_items oi "
               "JOIN menu_items mi ON oi.menu_item_id = mi.id "
               "WHERE oi.order_id = ?");
     q.addBindValue(orderId);
-    q.exec();
+    if (!q.exec()) { // اضافه کردن بررسی خطا برای اطمینان
+        qDebug() << "Failed to get order items:" << q.lastError().text();
+    }
     return q;
 }
 bool DataBaseHandler::updateOrderStatus(int orderId, const QString& newStatus)
@@ -253,24 +261,32 @@ bool DataBaseHandler::updateOrderStatus(int orderId, const QString& newStatus)
 
 bool DataBaseHandler::addOrderItems(int orderId, const QMap<int, CartItem>& items)
 {
-    bool all_ok = true;
+    // استفاده از تراکنش برای تضمین یکپارچگی داده‌ها
+    if (!db.transaction()) {
+        qDebug() << "Failed to start transaction for adding order items.";
+        return false;
+    }
+
     QSqlQuery query(db);
     query.prepare("INSERT INTO order_items (order_id, menu_item_id, quantity, price_per_item) "
-                  "VALUES (?, ?, ?, ?)");
+                  "VALUES (:order_id, :menu_item_id, :quantity, :price_per_item)");
 
-    // حلقه روی تمام آیتم‌های موجود در سبد خرید
+    // حلقه روی تمام آیتم‌ها و اجرای کوئری برای هر کدام
     for (const CartItem& item : items) {
-        query.addBindValue(orderId);
-        query.addBindValue(item.foodData["id"].toInt());
-        query.addBindValue(item.quantity);
-        query.addBindValue(item.foodData["price"].toDouble());
+        query.bindValue(":order_id", orderId);
+        query.bindValue(":menu_item_id", item.foodData["id"].toInt());
+        query.bindValue(":quantity", item.quantity);
+        query.bindValue(":price_per_item", item.foodData["price"].toDouble());
 
         if (!query.exec()) {
-            qDebug() << "Failed to add order item:" << query.lastError().text();
-            all_ok = false;
+            qDebug() << "Failed to add order item with menu_id" << item.foodData["id"].toInt() << ":" << query.lastError().text();
+            db.rollback(); // در صورت بروز خطا، تمام تغییرات را لغو کن
+            return false;
         }
     }
-    return all_ok;
+
+    // اگر همه آیتم‌ها با موفقیت اضافه شدند، تراکنش را تایید نهایی کن
+    return db.commit();
 }
 QSqlQuery DataBaseHandler::getUserDetails(int userId) {
     QSqlQuery q(db);

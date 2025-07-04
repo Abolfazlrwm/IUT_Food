@@ -29,12 +29,31 @@ int main(int argc, char *argv[])
     // ==========================================
 
     // اتصال به سرور
-    NetworkManager::getInstance()->connectToServer("127.0.0.1", 1234);
 
     // ساخت و نمایش پنجره اصلی
-    //Client w(&dbHandler);
-    AdminPanel w;
+    Client w(&dbHandler);
+    //AdminPanel w;
     w.show();
 
     return a.exec();
 }
+// #include "client.h" // یا هر کلاسی که پنجره اصلی شماست
+// #include "databasehandler.h"
+// #include <QApplication>
+
+// int main(int argc, char *argv[])
+// {
+//     QApplication a(argc, argv);
+
+//     // فرض می‌کنیم دیتابیس هندلر اینجا ساخته می‌شود
+//     DataBaseHandler dbHandler;
+//     dbHandler.openDataBase("food_data.db");
+//     // dbHandler.createTables(); // فقط برای اولین بار
+//     NetworkManager::getInstance()->connectToServer("127.0.0.1", 1234);
+
+//     Client w(&dbHandler); // اشاره‌گر dbHandler به Client پاس داده می‌شود
+//     w.show();
+
+//     // این خط حیاتی است! برنامه را در حلقه رویداد نگه می‌دارد و از بسته شدن آن جلوگیری می‌کند
+//     return a.exec();
+// }

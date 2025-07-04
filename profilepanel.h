@@ -2,7 +2,7 @@
 #define PROFILEPANEL_H
 
 #include <QWidget>
-#include <QListWidgetItem> // برای استفاده در اسلات
+#include <QListWidgetItem>
 
 // Forward declarations
 class DataBaseHandler;
@@ -36,6 +36,9 @@ private:
     QListWidget* m_navigationList;
     DataBaseHandler* m_dbHandler;
     int m_currentOrderId;
+    int m_currentRating;
+
+    QListWidget* m_historyList; // <<< اشاره‌گر جدید به لیست تاریخچه
 };
 
 #endif // PROFILEPANEL_H

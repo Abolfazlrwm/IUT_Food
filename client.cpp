@@ -148,6 +148,7 @@ void Client::onShowCheckoutDialog()
         // ساخت اطلاعات سفارش
         QJsonObject orderData;
         int newOrderId = QDateTime::currentMSecsSinceEpoch() % 100000;
+
         orderData["id"] = newOrderId;
         orderData["customer_id"] = 1; // فرض
         orderData["status"] = "در انتظار تایید";
@@ -159,7 +160,15 @@ void Client::onShowCheckoutDialog()
         if (m_dbHandler->createNewOrder(orderData)) {
 
             // ۲. سپس آیتم‌های آن را در جدول 'order_items' ذخیره می‌کنیم
+
             m_dbHandler->addOrderItems(newOrderId, cart->getItems());
+
+            bool success = m_dbHandler->addOrderItems(newOrderId, cart->getItems());
+            if (!success) {
+                qDebug() << "CRITICAL: Failed to add order items to database!";
+            } else {
+                qDebug() << "Successfully added order items for order ID:" << newOrderId;
+            }
 
             qDebug() << "New order" << newOrderId << "and its items saved to local DB.";
             emit historyChanged(); // به پنل پروفایل خبر می‌دهیم که تاریخچه آپدیت شده
