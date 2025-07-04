@@ -7,6 +7,7 @@
 #include "restaurant.h"
 #include <QDir>
 #include <QDebug>
+#include "mainwindow.h"
 
 int main(int argc, char *argv[])
 {
@@ -28,14 +29,10 @@ int main(int argc, char *argv[])
     dbHandler.createTables();
 
     // === نمایش آدرس دیتابیس در یک پیغام ساده ===
-    QMessageBox::information(nullptr, "آدرس دیتابیس",
-                             QString("برنامه با موفقیت به دیتابیس زیر متصل شد:\n%1").arg(QDir(dbPath).absolutePath()));
-    // ==========================================
-
-    // ساخت و نمایش پنجره اصلی
-    Client w(&dbHandler);
+    MainWindow w;
     //AdminPanel w;
     w.show();
+
 
     return a.exec();
 }

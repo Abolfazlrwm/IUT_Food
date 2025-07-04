@@ -7,6 +7,7 @@ SOURCES += \
     main.cpp \
     databasehandler.cpp \
     adminpanel.cpp \
+    mainwindow.cpp \
     user.cpp \
     client.cpp \
     checkoutdialog.cpp \
@@ -27,6 +28,7 @@ HEADERS += \
     adminnetworkmanager.h \
     databasehandler.h \
     adminpanel.h \
+    mainwindow.h \
     user.h \
     client.h \
     checkoutdialog.h \
@@ -49,6 +51,7 @@ HEADERS += \
 FORMS += \
     client.ui \
     checkoutdialog.ui \
+    mainwindow.ui \
     menudialog.ui \
     menuitemwidget.ui \
     restaurantitemwidget.ui \
