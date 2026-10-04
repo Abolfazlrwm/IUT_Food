@@ -1,0 +1,57 @@
+# Qt / qmake / CMake build artifacts
+build*/
+bin/
+moc_*.cpp
+moc_*.h
+ui_*.h
+qrc_*.cpp
+*_autogen/
+.qmake.stash
+.qmake.cache
+Makefile*
+!scripts/Makefile
+*.pro.user*
+*.qbs.user*
+CMakeLists.txt.user*
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+
+# Compiled objects / binaries
+*.o
+*.obj
+*.so
+*.so.*
+*.a
+*.dll
+*.exe
+*.app
+*.debug
+*.res
+
+# Runtime databases — never commit user data
+*.db
+*.sqlite
+*.sqlite3
+*.db-journal
+*.db-wal
+*.db-shm
+
+# TLS demo certificates (created by scripts/generate_certs.sh) — the
+# bundled tests/certs/*.pem fixtures ARE committed, on purpose.
+/certs/
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Python (smoke test tooling)
+__pycache__/
+*.pyc
+.venv/
