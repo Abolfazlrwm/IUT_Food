@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>MainWindow</class>
+ <widget class="QMainWindow" name="MainWindow">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>420</width>
+    <height>430</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>IUT-Food</string>
+  </property>
+  <property name="layoutDirection">
+   <enum>Qt::LayoutDirection::RightToLeft</enum>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="verticalLayout">
+    <property name="leftMargin">
+     <number>36</number>
+    </property>
+    <property name="topMargin">
+     <number>28</number>
+    </property>
+    <property name="rightMargin">
+     <number>36</number>
+    </property>
+    <property name="bottomMargin">
+     <number>28</number>
+    </property>
+    <property name="spacing">
+     <number>14</number>
+    </property>
+    <item>
+     <widget class="QLabel" name="titleLabel">
+      <property name="text">
+       <string>🍔 IUT-Food</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignCenter</set>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="subtitleLabel">
+      <property name="text">
+       <string>سامانه سفارش غذای دانشگاه صنعتی اصفهان</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignCenter</set>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QPushButton" name="userButton">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>56</height>
+       </size>
+      </property>
+      <property name="text">
+       <string>🧑‍💻  سفارش غذا (مشتری)</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QPushButton" name="restaurantButton">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>56</height>
+       </size>
+      </property>
+      <property name="text">
+       <string>🏪  پنل رستوران</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QPushButton" name="adminButton">
+      <property name="minimumSize">
+       <size>
+        <width>0</width>
+        <height>56</height>
+       </size>
+      </property>
+      <property name="text">
+       <string>🛡️  پنل مدیریت (نیازمند سرور)</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLabel" name="hintLabel">
+      <property name="text">
+       <string>داده‌های نمونه در اولین اجرا به‌صورت خودکار ساخته می‌شوند.</string>
+      </property>
+      <property name="alignment">
+       <set>Qt::AlignmentFlag::AlignCenter</set>
+      </property>
+     </widget>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QMenuBar" name="menubar">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>420</width>
+     <height>22</height>
+    </rect>
+   </property>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
