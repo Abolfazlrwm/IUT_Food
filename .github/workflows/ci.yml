@@ -1,0 +1,86 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build & smoke-test (${{ matrix.os }}, Qt ${{ matrix.qt-version }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            qt-version: "6.8"
+          - os: windows-2022
+            qt-version: "6.8"
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Qt ${{ matrix.qt-version }}
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: ${{ matrix.qt-version }}
+          modules: qtcharts qtimageformats
+          cache: true
+
+      - name: Configure (CMake)
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release -j"$(nproc 2>/dev/null || echo 4)"
+        shell: bash
+
+      - name: Unit tests (Qt Test)
+        run: ctest --test-dir build --output-on-failure -C Release
+
+      - name: Smoke test (server + full protocol)
+        run: |
+          SERVER=$( (ls build/iut-food-server* build/Release/iut-food-server* 2>/dev/null || true) | head -1 )
+          if [ -z "$SERVER" ]; then
+            echo "server binary not found"; find build -maxdepth 2 -name '*server*'; exit 1
+          fi
+          echo "server binary: $SERVER"
+          "$SERVER" --port 1234 --db ci_server.db &
+          SERVER_PID=$!
+          sleep 3
+          python3 scripts/smoke_test.py || python scripts/smoke_test.py
+          STATUS=$?
+          kill $SERVER_PID 2>/dev/null || true
+          exit $STATUS
+        shell: bash
+
+      - name: Upload binaries
+        uses: actions/upload-artifact@v7
+        with:
+          name: iut-food-${{ matrix.os }}-qt${{ matrix.qt-version }}
+          path: |
+            build/iut-food-client*
+            build/iut-food-server*
+            build/Release/iut-food-client*
+            build/Release/iut-food-server*
+          if-no-files-found: error
+
+  docker:
+    name: Docker image & container smoke test
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Build the server image
+        run: docker build -t iut-food-server .
+
+      - name: Run the container and smoke-test it
+        run: |
+          docker run -d --name iut-server -p 1234:1234 iut-food-server
+          sleep 3
+          python3 scripts/smoke_test.py
+          docker logs iut-server 2>&1 | tail -5
+          docker rm -f iut-server > /dev/null
