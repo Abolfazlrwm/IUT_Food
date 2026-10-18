@@ -1,0 +1,197 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Client</class>
+ <widget class="QMainWindow" name="Client">
+  <property name="enabled">
+   <bool>true</bool>
+  </property>
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>760</width>
+    <height>540</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>IUT-Food — سفارش غذا</string>
+  </property>
+  <property name="layoutDirection">
+   <enum>Qt::LayoutDirection::RightToLeft</enum>
+  </property>
+  <widget class="QWidget" name="centralwidget">
+   <layout class="QVBoxLayout" name="mainLayout">
+    <property name="leftMargin">
+     <number>24</number>
+    </property>
+    <property name="topMargin">
+     <number>18</number>
+    </property>
+    <property name="rightMargin">
+     <number>24</number>
+    </property>
+    <property name="bottomMargin">
+     <number>18</number>
+    </property>
+    <property name="spacing">
+     <number>12</number>
+    </property>
+    <item>
+     <widget class="QLabel" name="welcomeLabel">
+      <property name="text">
+       <string>سلام! چه چیزی میل دارید؟</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <widget class="QLineEdit" name="searchLineEdit">
+      <property name="placeholderText">
+       <string>🔍  نام رستوران مورد نظر را جست‌وجو کنید…</string>
+      </property>
+     </widget>
+    </item>
+    <item>
+     <layout class="QHBoxLayout" name="filtersLayout">
+      <property name="spacing">
+       <number>10</number>
+      </property>
+      <item>
+       <widget class="QLabel" name="locationLabel">
+        <property name="text">
+         <string>منطقه:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="locationFilterCombo">
+        <item>
+         <property name="text">
+          <string>همه</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>منطقه یک</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>منطقه 2</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item>
+       <widget class="QLabel" name="typeLabel">
+        <property name="text">
+         <string>نوع غذا:</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="typeFilterCombo">
+        <item>
+         <property name="text">
+          <string>همه</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>فست فود</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>ایرانی</string>
+         </property>
+        </item>
+        <item>
+         <property name="text">
+          <string>ساندویچ</string>
+         </property>
+        </item>
+       </widget>
+      </item>
+      <item>
+       <spacer name="filterSpacer">
+        <property name="orientation">
+         <enum>Qt::Orientation::Horizontal</enum>
+        </property>
+        <property name="sizeHint" stdset="0">
+         <size>
+          <width>40</width>
+          <height>20</height>
+         </size>
+        </property>
+       </spacer>
+      </item>
+      <item>
+       <widget class="QPushButton" name="showRestaurantsButton">
+        <property name="text">
+         <string>نمایش رستوران‌ها</string>
+        </property>
+       </widget>
+      </item>
+     </layout>
+    </item>
+    <item>
+     <spacer name="contentSpacer">
+      <property name="orientation">
+       <enum>Qt::Orientation::Vertical</enum>
+      </property>
+      <property name="sizeHint" stdset="0">
+       <size>
+        <width>20</width>
+        <height>40</height>
+       </size>
+      </property>
+     </spacer>
+    </item>
+   </layout>
+  </widget>
+  <widget class="QStatusBar" name="statusbar"/>
+  <widget class="QToolBar" name="toolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="actionProfile"/>
+   <addaction name="separator"/>
+   <addaction name="actionCart"/>
+  </widget>
+  <action name="actionProfile">
+   <property name="icon">
+    <iconset>
+     <normaloff>:/icons/user.webp</normaloff>:/icons/user.webp</iconset>
+   </property>
+   <property name="text">
+    <string>پروفایل کاربری</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+  <action name="actionCart">
+   <property name="icon">
+    <iconset>
+     <normaloff>:/icons/shopping-cart.webp</normaloff>:/icons/shopping-cart.webp</iconset>
+   </property>
+   <property name="text">
+    <string>سبد خرید</string>
+   </property>
+   <property name="toolTip">
+    <string>مشاهده سبد خرید و پرداخت</string>
+   </property>
+   <property name="menuRole">
+    <enum>QAction::MenuRole::NoRole</enum>
+   </property>
+  </action>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
