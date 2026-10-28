@@ -1,0 +1,11 @@
+# Everything the image build does not need — keep the context small.
+# NOTE: scripts/ and tests/ must stay: CMake configures the unit-test and
+# screenshot-driver targets even when only the server binary is built.
+.git/
+build*/
+bin/
+docs/
+*.db
+*.zip
+CMakeLists.txt.user*
+.qmake.stash
