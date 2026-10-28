@@ -1,0 +1,44 @@
+# One-command demo stack: the IUT-Food TCP server with a persistent
+# database volume.  Start it with `docker compose up`, then point the
+# client launcher at localhost:1234.
+#
+# TLS demo (v2.3): generate a self-signed certificate first
+#   sh scripts/generate_certs.sh
+# then start the encrypted stack with
+#   docker compose --profile tls up server-tls
+# and tick "TLS" in the client login dialog.
+#
+# Logging (v2.4): both services append to /data/logs/server.log inside
+# the data volume (size-rotated, 3 generations), so `docker compose
+# logs` history survives container recreation.
+services:
+  server:
+    build: .
+    image: iut-food-server
+    ports:
+      - "1234:1234"
+    volumes:
+      - iut-food-data:/data
+    command: ["--port", "1234", "--db", "/data/iut_food.db",
+              "--log-file", "/data/logs/server.log", "--log-level", "info"]
+    restart: unless-stopped
+
+  # Same image, started with the TLS flags; the certificate is expected
+  # in ./certs (created by scripts/generate_certs.sh).  Activated only
+  # through the "tls" profile so the plain stack stays the default.
+  server-tls:
+    profiles: ["tls"]
+    build: .
+    image: iut-food-server
+    ports:
+      - "1234:1234"
+    volumes:
+      - iut-food-data:/data
+      - ./certs:/certs:ro
+    command: ["--port", "1234", "--db", "/data/iut_food.db",
+              "--tls-cert", "/certs/server.crt", "--tls-key", "/certs/server.key",
+              "--log-file", "/data/logs/server.log", "--log-level", "info"]
+    restart: unless-stopped
+
+volumes:
+  iut-food-data:
