@@ -1,0 +1,18 @@
+{
+  "label": "v2.4.0 - WAL + prepared-statement reuse",
+  "clients": 50,
+  "requests_per_client": 20,
+  "pacing_rps_per_client": null,
+  "total_requests": 1000,
+  "wall_seconds": 2.46,
+  "requests_per_second": 406.5,
+  "login_seconds_mean": 1.236,
+  "latency_ms": {
+    "mean": 10.09,
+    "p50": 1.06,
+    "p90": 1.64,
+    "p95": 1.86,
+    "p99": 2.78,
+    "max": 2234.03
+  }
+}
