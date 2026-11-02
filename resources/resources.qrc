@@ -1,0 +1,10 @@
+<RCC>
+    <qresource prefix="/icons">
+        <file alias="user.webp">icons/user.webp</file>
+        <file alias="shopping-cart.webp">icons/shopping-cart.webp</file>
+    </qresource>
+    <qresource prefix="/fonts">
+        <file alias="Vazirmatn-Regular.ttf">../fonts/Vazirmatn-Regular.ttf</file>
+        <file alias="Vazirmatn-Bold.ttf">../fonts/Vazirmatn-Bold.ttf</file>
+    </qresource>
+</RCC>
