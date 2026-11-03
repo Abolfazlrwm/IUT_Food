@@ -1,0 +1,134 @@
+name: Release
+
+# Attach ready-to-run artifacts to every version tag: a portable
+# Windows build (Qt DLLs bundled with windeployqt) and a Linux
+# tarball, each with a SHA-256 checksum.
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+
+jobs:
+  windows-portable:
+    name: Portable Windows build
+    runs-on: windows-2022
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Qt 6.8
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8"
+          modules: qtcharts qtimageformats
+          cache: true
+
+      - name: Configure and build
+        shell: bash
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build --config Release -j"$(nproc 2>/dev/null || echo 4)"
+
+      - name: Stage the portable layout
+        shell: bash
+        run: |
+          mkdir -p dist
+          CLI=$( (ls build/iut-food-client.exe build/Release/iut-food-client.exe 2>/dev/null || true) | head -1 )
+          SRV=$( (ls build/iut-food-server.exe build/Release/iut-food-server.exe 2>/dev/null || true) | head -1 )
+          if [ -z "$CLI" ] || [ -z "$SRV" ]; then
+            echo "binaries not found"; find build -maxdepth 2 -name '*.exe'; exit 1
+          fi
+          cp "$CLI" dist/iut-food-client.exe
+          cp "$SRV" dist/iut-food-server.exe
+          windeployqt --release --no-translations --no-system-d3d-compiler \
+            --no-opengl-sw dist/iut-food-client.exe
+          # The server needs QtCore/QtNetwork/QtSql from the same folder.
+          cp README.md LICENSE CHANGELOG.md dist/
+
+      - name: Run the smoke suite against the packaged server
+        shell: bash
+        run: |
+          ./dist/iut-food-server.exe --port 1234 --db ci_server.db &
+          SERVER_PID=$!
+          sleep 3
+          python scripts/smoke_test.py
+          kill $SERVER_PID 2>/dev/null || true
+
+      - name: Checksum and zip
+        shell: bash
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          STAGE="IUT-Food-${VERSION}-windows-x64"
+          mv dist "$STAGE"
+          find "$STAGE" -type f -print0 | sort -z | xargs -0 sha256sum > checksums-windows.txt
+          7z a "$STAGE.zip" "$STAGE"
+          mv checksums-windows.txt "$STAGE-checksums.txt"
+
+      - name: Upload to the release
+        shell: bash
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" --title "IUT-Food $GITHUB_REF_NAME" \
+              --notes "Automated release artifacts (notes are maintained in the repository docs)."
+          gh release upload "$GITHUB_REF_NAME" *.zip *-checksums.txt --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  linux-tarball:
+    name: Linux tarball
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Qt 6.8
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8"
+          modules: qtcharts qtimageformats
+          cache: true
+
+      - name: Configure and build
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j"$(nproc)"
+
+      - name: Run the smoke suite
+        run: |
+          ./build/iut-food-server --port 1234 --db ci_server.db &
+          SERVER_PID=$!
+          sleep 2
+          python3 scripts/smoke_test.py
+          kill $SERVER_PID 2>/dev/null || true
+
+      - name: Checksum and tar
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          STAGE="IUT-Food-${VERSION}-linux-x64"
+          mkdir "$STAGE"
+          cp build/iut-food-client build/iut-food-server "$STAGE"/
+          cp README.md LICENSE CHANGELOG.md "$STAGE"/
+          {
+            echo "The binaries need the Qt 6 runtime libraries (Core, Gui, Widgets,"
+            echo "Network, Sql, Charts). On Debian/Ubuntu:"
+            echo
+            echo "    sudo apt install qt6-base-dev libqt6charts6"
+            echo
+            echo "Or run the server without any host Qt via Docker:"
+            echo
+            echo "    docker build -t iut-food-server . && docker run -p 1234:1234 iut-food-server"
+          } > "$STAGE/README-LINUX.txt"
+          find "$STAGE" -type f -print0 | sort -z | xargs -0 sha256sum > checksums-linux.txt
+          tar czf "$STAGE.tar.gz" "$STAGE"
+          mv checksums-linux.txt "$STAGE-checksums.txt"
+
+      - name: Upload to the release
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" --title "IUT-Food $GITHUB_REF_NAME" \
+              --notes "Automated release artifacts (notes are maintained in the repository docs)."
+          gh release upload "$GITHUB_REF_NAME" *.tar.gz *-checksums.txt --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
