@@ -1,0 +1,15 @@
+# One-command demo stack: the IUT-Food TCP server with a persistent
+# database volume.  Start it with `docker compose up`, then point the
+# client launcher at localhost:1234.
+services:
+  server:
+    build: .
+    image: iut-food-server
+    ports:
+      - "1234:1234"
+    volumes:
+      - iut-food-data:/data
+    restart: unless-stopped
+
+volumes:
+  iut-food-data:
