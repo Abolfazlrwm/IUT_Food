@@ -1,0 +1,16 @@
+{
+  "clients": 50,
+  "requests_per_client": 20,
+  "total_requests": 1000,
+  "wall_seconds": 2.54,
+  "requests_per_second": 394.2,
+  "login_seconds_mean": 1.274,
+  "latency_ms": {
+    "mean": 3.96,
+    "p50": 1.59,
+    "p90": 1.9,
+    "p95": 2.15,
+    "p99": 3.2,
+    "max": 2399.06
+  }
+}
