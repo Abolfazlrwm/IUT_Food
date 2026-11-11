@@ -1,0 +1,18 @@
+{
+  "label": "v2.3.0 baseline - rollback journal, per-call prepare",
+  "clients": 50,
+  "requests_per_client": 20,
+  "pacing_rps_per_client": null,
+  "total_requests": 1000,
+  "wall_seconds": 2.5,
+  "requests_per_second": 399.7,
+  "login_seconds_mean": 1.252,
+  "latency_ms": {
+    "mean": 4.02,
+    "p50": 1.7,
+    "p90": 2.14,
+    "p95": 2.3,
+    "p99": 3.52,
+    "max": 2362.67
+  }
+}
