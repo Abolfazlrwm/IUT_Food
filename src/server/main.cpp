@@ -23,6 +23,8 @@ void requestStop(int)
 }
 
 #ifdef _WIN32
+#include <windows.h>
+
 BOOL WINAPI consoleCtrlHandler(DWORD)
 {
     g_stopRequested.store(true);
