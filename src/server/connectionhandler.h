@@ -72,6 +72,14 @@ private:
     //! True when \p orderId belongs to the session's restaurant.
     bool orderBelongsToRestaurant(int orderId, int restaurantId);
 
+    //! Peer address as text, for audit lines ("?" before the socket
+    //! exists).  v2.5 audit trails record who did what from where.
+    QString peerAddress() const
+    {
+        return m_socket ? m_socket->peerAddress().toString()
+                        : QStringLiteral("?");
+    }
+
     QTcpSocket *m_socket;
     DataBaseHandler *m_dbHandler;
     SessionManager *m_sessions; //!< shared across all connections
