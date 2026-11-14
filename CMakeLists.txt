@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.16)
 
 project(IUT-Food
-    VERSION 2.4.0
+    VERSION 2.5.0
     DESCRIPTION "Campus food-ordering system built with Qt"
     LANGUAGES CXX)
 
@@ -26,6 +26,8 @@ add_library(iutfood_core STATIC
     src/common/demodata.h
     src/common/datatypes.h
     src/common/fooditem.h
+    src/common/auditlog.h
+    src/common/backupmanager.h
     src/common/logger.h
     src/common/order.h
     src/common/orderstatus.h
@@ -139,7 +141,9 @@ if (Qt${QT_VERSION_MAJOR}Test_FOUND)
         orders_tests
         users_tests
         tls_tests
-        logger_tests)
+        logger_tests
+        backup_tests
+        audit_tests)
 
     foreach(suite IN LISTS IUT_TEST_SUITES)
         add_executable(${suite} tests/${suite}.cpp)
