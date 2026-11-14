@@ -467,3 +467,60 @@ request: the listener closes, every connected client receives a final
 process exits with code 0.  Clients treat the note like any other
 notification (unknown types are ignored), so older clients simply see the
 connection end.
+
+## 14. Backups and audit trail (v2.5)
+
+Two operational side channels complete the picture: rolling database
+snapshots for disaster recovery and a machine-readable audit trail for
+"who did what".
+
+### Rolling backups
+
+```
+iut-food-server --db /data/iut_food.db --backup-dir /data/backups \
+                --backup-interval 60 --backup-keep 5
+```
+
+| Flag | Meaning |
+|---|---|
+| `--backup-dir <dir>` | enable snapshots into this directory (default: disabled) |
+| `--backup-interval <min>` | minutes between snapshots (default 60; a baseline snapshot is taken at start-up) |
+| `--backup-keep <n>` | how many generations survive (default 5; pruning runs after every snapshot) |
+
+Snapshots are produced with SQLite's `VACUUM INTO`, which takes a
+consistent read snapshot of the WAL database and writes it fully
+compacted, so every file is a valid database that opens even while the
+server is running.  Names are `iut_food-backup-YYYYMMDD-HHMMSS-zzz.db`
+(zero-padded, millisecond resolution), and one final snapshot is taken
+during the graceful shutdown, so `docker stop` never loses more than a
+minute of data.  Every snapshot attempt is logged (`[info] backup:` on
+success, `[warning] backup:` on failure); a failed backup never stops
+the server.
+
+### Audit trail (JSONL)
+
+```
+iut-food-server --audit-file /data/audit/audit.jsonl
+```
+
+With the flag set, every security-relevant action appends exactly one
+compact JSON object per line (rotated at 5 MiB, 3 generations kept):
+
+```json
+{"actor":"demo_customer","extra":{"amount":150000,"ip":"::ffff:127.0.0.1"},"kind":"wallet_topup","ts":"2026-11-14 21:04:11.123"}
+{"actor":"admin","extra":{"action":"block_user","ip":"::ffff:127.0.0.1","target_id":7},"kind":"moderation","ts":"2026-11-14 21:06:40.002"}
+```
+
+| Kind | When |
+|---|---|
+| `login_ok` / `login_failed` | every login attempt, actor = attempted username |
+| `logout` | session revocation |
+| `moderation` | `block_user`, `unblock_user`, `delete_user`, `approve_restaurant`, `disapprove_restaurant` |
+| `coupon_created` / `coupon_toggled` | admin coupon management |
+| `wallet_topup` / `wallet_paid` | successful wallet movements, with `amount` |
+| `order_placed` | successful order, with `order_id` and `total` |
+
+Every record carries `ts` (server local time, millisecond precision),
+`kind`, `actor` (username or `?`) and, when available, `extra.ip` — the
+client address.  The file is plain JSON Lines, so `jq 'select(.kind ==
+"login_failed")' audit.jsonl` is already a working security report.

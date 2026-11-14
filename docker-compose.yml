@@ -11,6 +11,11 @@
 # Logging (v2.4): both services append to /data/logs/server.log inside
 # the data volume (size-rotated, 3 generations), so `docker compose
 # logs` history survives container recreation.
+#
+# Operations (v2.5): both services also write rolling SQLite snapshots
+# to /data/backups and a JSONL audit trail to /data/audit/audit.jsonl
+# inside the same volume - snapshots survive `docker stop`, and every
+# login, moderation and wallet event is on the record.
 services:
   server:
     build: .
@@ -20,7 +25,9 @@ services:
     volumes:
       - iut-food-data:/data
     command: ["--port", "1234", "--db", "/data/iut_food.db",
-              "--log-file", "/data/logs/server.log", "--log-level", "info"]
+              "--log-file", "/data/logs/server.log", "--log-level", "info",
+              "--backup-dir", "/data/backups", "--backup-interval", "60",
+              "--audit-file", "/data/audit/audit.jsonl"]
     restart: unless-stopped
 
   # Same image, started with the TLS flags; the certificate is expected
@@ -37,7 +44,9 @@ services:
       - ./certs:/certs:ro
     command: ["--port", "1234", "--db", "/data/iut_food.db",
               "--tls-cert", "/certs/server.crt", "--tls-key", "/certs/server.key",
-              "--log-file", "/data/logs/server.log", "--log-level", "info"]
+              "--log-file", "/data/logs/server.log", "--log-level", "info",
+              "--backup-dir", "/data/backups", "--backup-interval", "60",
+              "--audit-file", "/data/audit/audit.jsonl"]
     restart: unless-stopped
 
 volumes:
