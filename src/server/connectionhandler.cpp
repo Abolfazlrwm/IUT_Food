@@ -1,5 +1,6 @@
 #include "connectionhandler.h"
 #include "databasehandler.h"
+#include "auditlog.h"
 #include "logger.h"
 #include "orderstatus.h"
 #include "server.h"
@@ -197,6 +198,11 @@ void ConnectionHandler::dispatchCommand(const QJsonObject &request)
             response[QLatin1String("expires_in")] =
                 int(m_sessions->lifetimeMs() / 1000);
         }
+        // v2.5: both login outcomes hit the audit trail - the failed
+        // ones are the interesting half for a security reviewer.
+        AUDIT(success ? QStringLiteral("login_ok") : QStringLiteral("login_failed"),
+              username.isEmpty() ? QStringLiteral("?") : username,
+              QJsonObject({{QStringLiteral("ip"), peerAddress()}}));
         sendJson(response);
         return;
     }
@@ -210,6 +216,8 @@ void ConnectionHandler::dispatchCommand(const QJsonObject &request)
     if (command == QLatin1String("logout")) {
         response[QLatin1String("success")] =
             m_sessions->revoke(request.value(QLatin1String("token")).toString());
+        AUDIT(QStringLiteral("logout"), session.username,
+              QJsonObject({{QStringLiteral("ip"), peerAddress()}}));
         sendJson(response);
         return;
     }
@@ -272,6 +280,13 @@ void ConnectionHandler::dispatchCommand(const QJsonObject &request)
         else
             ok = m_dbHandler->disapproveRestaurant(userId);
         response[QLatin1String("success")] = ok;
+        // v2.5: moderation decisions are exactly what an audit trail
+        // exists for - record who changed which account.
+        if (ok)
+            AUDIT(QStringLiteral("moderation"), session.username,
+                  QJsonObject({{QStringLiteral("action"), command},
+                   {QStringLiteral("target_id"), userId},
+                   {QStringLiteral("ip"), peerAddress()}}));
         sendJson(response);
     }
     else if (command == QLatin1String("get_orders")) {
@@ -348,10 +363,21 @@ void ConnectionHandler::dispatchCommand(const QJsonObject &request)
                 request.value(QLatin1String("min_order")).toDouble(),
                 request.value(QLatin1String("expires_at")).toString(),
                 request.value(QLatin1String("max_uses")).toInt());
+            if (response.value(QLatin1String("success")).toBool())
+                AUDIT(QStringLiteral("coupon_created"), session.username,
+                      QJsonObject({{QStringLiteral("code"),
+                        request.value(QLatin1String("code")).toString()},
+                       {QStringLiteral("ip"), peerAddress()}}));
         } else {
-            response[QLatin1String("success")] = m_dbHandler->setCouponActive(
-                request.value(QLatin1String("coupon_id")).toInt(),
-                request.value(QLatin1String("active")).toBool());
+            const int couponId = request.value(QLatin1String("coupon_id")).toInt();
+            const bool active = request.value(QLatin1String("active")).toBool();
+            response[QLatin1String("success")] =
+                m_dbHandler->setCouponActive(couponId, active);
+            if (response.value(QLatin1String("success")).toBool())
+                AUDIT(QStringLiteral("coupon_toggled"), session.username,
+                      QJsonObject({{QStringLiteral("coupon_id"), couponId},
+                       {QStringLiteral("active"), active},
+                       {QStringLiteral("ip"), peerAddress()}}));
         }
         sendJson(response);
     }
@@ -447,15 +473,26 @@ void ConnectionHandler::dispatchCommand(const QJsonObject &request)
         if (command == QLatin1String("get_wallet_balance")) {
             response[QLatin1String("balance")] = m_dbHandler->getWalletBalance(userId);
         } else if (command == QLatin1String("charge_wallet")) {
+            const double amount = request.value(QLatin1String("amount")).toDouble();
             response[QLatin1String("success")] = m_dbHandler->chargeWallet(
-                userId,
-                request.value(QLatin1String("amount")).toDouble(),
+                userId, amount,
                 request.value(QLatin1String("note")).toString());
+            // v2.5: money in, money out - both directions are audited.
+            if (response.value(QLatin1String("success")).toBool())
+                AUDIT(QStringLiteral("wallet_topup"), session.username,
+                      QJsonObject({{QStringLiteral("amount"), amount},
+                       {QStringLiteral("ip"), peerAddress()}}));
         } else {
+            const double amount = request.value(QLatin1String("amount")).toDouble();
             response[QLatin1String("success")] = m_dbHandler->payFromWallet(
-                userId,
-                request.value(QLatin1String("amount")).toDouble(),
+                userId, amount,
                 request.value(QLatin1String("order_id")).toInt());
+            if (response.value(QLatin1String("success")).toBool())
+                AUDIT(QStringLiteral("wallet_paid"), session.username,
+                      QJsonObject({{QStringLiteral("amount"), amount},
+                       {QStringLiteral("order_id"),
+                        request.value(QLatin1String("order_id")).toInt()},
+                       {QStringLiteral("ip"), peerAddress()}}));
         }
         sendJson(response);
     }
@@ -513,6 +550,15 @@ void ConnectionHandler::dispatchCommand(const QJsonObject &request)
         response[QLatin1String("success")] = itemsSaved;
         response[QLatin1String("order_id")] = orderId;
         response[QLatin1String("total_price")] = total;
+        if (itemsSaved) {
+            QJsonObject auditExtra{
+                {QStringLiteral("order_id"), orderId},
+                {QStringLiteral("total"), total},
+                {QStringLiteral("ip"), peerAddress()}};
+            if (!couponCode.isEmpty())
+                auditExtra[QStringLiteral("coupon")] = couponCode;
+            AUDIT(QStringLiteral("order_placed"), session.username, auditExtra);
+        }
 
         // Wallet payment: atomic deduction, the order is marked cancelled
         // when the balance turned out to be insufficient.
