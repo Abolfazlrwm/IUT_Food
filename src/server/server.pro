@@ -18,6 +18,8 @@ HEADERS += \
     connectionhandler.h \
     server.h \
     ../common/databasehandler.h \
+    ../common/auditlog.h \
+    ../common/backupmanager.h \
     ../common/demodata.h \
     ../common/datatypes.h \
     ../common/fooditem.h \
