@@ -3,6 +3,40 @@
 All notable changes to IUT-Food are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/) (admittedly loosely).
 
+## [2.5.0] — 2026-11-14
+
+The "operability" release: the server can now back itself up on a
+schedule and answers "who did what" with a machine-readable audit trail.
+
+### Added
+- 💾 **Rolling SQLite snapshots** (`src/common/backupmanager.h`) — `--backup-dir`
+  enables `VACUUM INTO` snapshots, which stay valid, fully compacted
+  databases even while orders are being written in WAL mode;
+  `--backup-interval` (default 60 min) paces them and `--backup-keep`
+  (default 5) bounds the directory.  A baseline snapshot runs at start-up
+  and a final one during the graceful shutdown, so `docker stop` never
+  loses more than a minute of data; a failed snapshot logs a warning and
+  never stops the server.
+- 🧾 **JSONL audit trail** (`src/common/auditlog.h`) — `--audit-file` appends
+  one compact JSON object per security-relevant event: `login_ok` /
+  `login_failed`, `logout`, `moderation` (block / unblock / delete /
+  approve), `coupon_created` / `coupon_toggled`, `wallet_topup` /
+  `wallet_paid` and `order_placed` — each with actor, peer address and
+  structured amounts or ids.  Rotated at 5 MiB, 3 generations kept; one
+  event per line means `jq` is already a working security report.
+- 🐳 **Compose side channels** — the demo services now write snapshots and
+  the audit trail into the existing data volume (`/data/backups`,
+  `/data/audit/audit.jsonl`), so they survive container recreation.
+- 🧪 **`backup_tests` (4 cases) + `audit_tests` (3 cases)** — snapshot
+  validity against a second connection, retention pruning, disabled and
+  missing-source error modes, JSONL shape and rotation.  Eleven suites /
+  59 cases total.
+
+### Changed
+- 📈 `get_server_stats` responses are unchanged, but the admin panel's data
+  now has an offline twin: the audit trail can answer "who blocked this
+  user" without touching the server.
+
 ## [2.4.0] — 2026-11-11
 
 The "performance & observability" release: the data layer gets the standard

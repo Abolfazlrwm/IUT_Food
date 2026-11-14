@@ -85,6 +85,9 @@ server is not running, then syncs through the server whenever it is available.
   SIGTERM/docker-stop path that says goodbye to clients before exiting
 - 🚄 **Tuned SQLite data layer (v2.4)** — WAL journal, `synchronous=NORMAL`, busy timeout
   and prepared-statement reuse cut tail latency by ~20-37% (see the performance section)
+- 💾 **Rolling backups + JSONL audit trail (v2.5)** — scheduled `VACUUM INTO`
+  snapshots with retention, and one-JSON-object-per-line records of every
+  login, moderation, wallet and order event (see the operations section)
 - 🌱 **Self-seeding demo data** — first launch creates restaurants, menus, orders, a review,
   wallet balance and coupons, so every screen has content immediately
 - 🎨 **Bundled Vazirmatn typeface** + full right-to-left UI — Persian renders identically on
@@ -233,6 +236,8 @@ Demo coupons: `WELCOME20` (20 % off, min 100,000) and `IUT50` (50,000 تومان
 iut-food-server [--port 1234] [--db server.db]
 iut-food-server --tls-cert certs/server.crt --tls-key certs/server.key   # TLS mode
 iut-food-server --log-file logs/server.log --log-level info              # v2.4 logging
+iut-food-server --backup-dir backups --backup-interval 60                # v2.5 snapshots
+iut-food-server --audit-file audit/audit.jsonl                           # v2.5 audit trail
 ```
 
 TLS demo in one line: `sh scripts/generate_certs.sh` creates a self-signed
@@ -248,9 +253,22 @@ shutdown), `warning` (rate-limit rejections, oversize frames), `error`.  A
 listener closes, connected clients receive a final `server_shutdown`
 note, and the exit code stays 0.
 
+Operations (v2.5): `--backup-dir <dir>` turns on rolling snapshots — a
+`VACUUM INTO` baseline at start-up, one every `--backup-interval` minutes
+(default 60), and a final one during shutdown, with the newest
+`--backup-keep` (default 5) generations kept as
+`iut_food-backup-YYYYMMDD-HHMMSS-zzz.db`.  Every snapshot is a valid,
+compacted SQLite database even while orders are being written.  The
+companion `--audit-file <file>` appends one compact JSON object per
+security-relevant event — logins (successes **and** failures), admin
+moderation, coupon management, wallet movements and placed orders — each
+with the actor, the peer address and the amounts or ids involved
+([PROTOCOL.md §14](docs/PROTOCOL.md) lists the full record set); the file
+is plain JSON Lines, rotated at 5 MiB with 3 generations kept.
+
 ## 🧪 Tests
 
-### Unit tests — nine Qt Test suites, 52 cases
+### Unit tests — eleven Qt Test suites, 59 cases
 
 The business rules are covered by Qt Test suites that run against a scratch SQLite
 database (and one suite against the official RFC vectors):
@@ -266,9 +284,11 @@ database (and one suite against the official RFC vectors):
 | `users_tests` | registration/login, blocking, **transparent legacy-hash migration** |
 | `tls_tests` | TLS handshake against the bundled certificate, encrypted login/wallet round-trip, chat broadcast over TLS, plain-text clients rejected |
 | `logger_tests` | level filtering, size-based rotation generations, stderr-only fallback, level parser |
+| `backup_tests` | snapshot validity over a second connection, retention pruning, disabled and missing-source modes |
+| `audit_tests` | JSONL record shape, rotation generations, disabled mode |
 
 ```bash
-ctest --test-dir build --output-on-failure    # 9 suites, 52 cases
+ctest --test-dir build --output-on-failure    # 11 suites, 59 cases
 ```
 
 ### End-to-end smoke test — 52 protocol checks
@@ -335,7 +355,7 @@ IUT-Food/
 │   ├── smoke_test.py         # end-to-end protocol test (52 checks)
 │   ├── benchmark.py          # latency / throughput harness
 │   └── screenshot_driver.cpp # offscreen capture driver for the docs
-├── tests/               # seven Qt Test suites (run with ctest)
+├── tests/               # eleven Qt Test suites (run with ctest)
 ├── Dockerfile           # two-stage server image (+ docker-compose.yml)
 ├── .github/workflows/   # CI (Ubuntu + Windows build, tests, docker) + release pipeline
 └── CMakeLists.txt       # two targets: iut-food-client, iut-food-server
@@ -352,6 +372,7 @@ IUT-Food/
 - [x] Windows CI build + automated release artifacts (v2.2)
 - [x] TLS transport for remote deployments (v2.3)
 - [x] Rotating file logger, graceful shutdown and WAL-based database tuning (v2.4)
+- [x] Rolling SQLite backups and a JSONL audit trail (v2.5)
 - [ ] Per-order chat rooms instead of global broadcast
 - [ ] WebSocket transport option
 - [ ] Telegram bot for order notifications
@@ -375,7 +396,8 @@ test) and match the existing code style (4 spaces, `QStringLiteral`, documented 
 
 **IUT-Food** یک سامانه سفارش غذای دانشگاهی است که با Qt و C++17 ساخته شده:
 کلاینت گرافیکی برای مشتری، رستوران و مدیر + سرور TCP با قابلیت push لحظه‌ای وضعیت سفارش‌ها و چت.
-در نسخه ۲، **کیف پول، کدهای تخفیف، رهگیری زنده سفارش، حالت تاریک و علاقه‌مندی‌ها** هم اضافه شده است.
+در نسخه ۲، **کیف پول، کدهای تخفیف، رهگیری زنده سفارش، حالت تاریک و علاقه‌مندی‌ها** اضافه شده‌اند؛
+نسخهٔ ۲.۴ **لاگ چرخشی و خاموشی تمیز** و نسخهٔ ۲.۵ **پشتیبان‌گیری چرخشی SQLite و گزارش حسابرسی JSONL** را می‌آورد.
 رابط کاربری کاملاً فارسی و راست‌به‌چپ است و داده‌های نمونه در اولین اجرا ساخته می‌شوند.
 
 ⭐ اگر این پروژه برایتان مفید بود، یک ستاره بزنید!
