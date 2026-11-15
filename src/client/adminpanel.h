@@ -28,6 +28,7 @@ private slots:
     void loadOrders();
     void loadReviews();
     void loadCoupons();
+    void loadServerStats();
     void addCoupon();
     void toggleSelectedCoupon();
     void blockSelectedUser();
@@ -44,6 +45,7 @@ private:
     void setupOrdersTab();
     void setupCouponsTab();
     void setupReportsTab();
+    void setupServerTab();
     void setupConnections();
     int getSelectedUserId() const;
     int getSelectedCouponId() const;
@@ -63,6 +65,7 @@ private:
     QWidget *ordersTab;
     QWidget *couponsTab;
     QWidget *reportsTab;
+    QWidget *serverTab;
 
     QTableWidget *tableUsers;
     QPushButton *btnBlock;
@@ -83,6 +86,17 @@ private:
     QComboBox *comboChartType;
     QPushButton *btnGenerateChart;
     QChartView *chartView;
+
+    // v2.6: live server-health tab (get_server_stats, admin only).
+    QLabel *statUptime;
+    QLabel *statSessions;
+    QLabel *statSessionsTotal;
+    QLabel *statConnections;
+    QLabel *statTlsConnections;
+    QLabel *statRequestsServed;
+    QLabel *statRequestsRejected;
+    QLabel *statAuthFailures;
+    QPushButton *btnRefreshStats;
 
     QLabel *m_connectionLabel = nullptr;
     NetworkManager *m_network = nullptr;
