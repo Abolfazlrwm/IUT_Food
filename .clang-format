@@ -1,0 +1,44 @@
+# Clang-format baseline for IUT-Food.
+#
+# The codebase follows the Qt style: 4 spaces, braces on their own line
+# for classes/functions/enums but attached for control flow, ~100
+# columns, right-aligned pointers.  Apply with:
+#
+#   clang-format -i src/**/*.cpp src/**/*.h
+#
+# CI does not enforce this (yet) - it is the shared baseline so editor
+# formatting and manual reflows do not churn the diffs.
+BasedOnStyle: LLVM
+Standard: c++17
+IndentWidth: 4
+ColumnLimit: 100
+AccessModifierOffset: -4
+PointerAlignment: Right
+BreakBeforeBraces: Custom
+BraceWrapping:
+  AfterClass: true
+  AfterEnum: true
+  AfterFunction: true
+  AfterStruct: true
+  AfterNamespace: false
+  AfterControlStatement: Never
+AllowShortFunctionsOnASingleLine: InlineOnly
+AllowShortIfStatementsOnASingleLine: Never
+AllowShortLoopsOnASingleLine: false
+SortIncludes: CaseSensitive
+IncludeBlocks: Preserve
+IncludeCategories:
+  # Qt headers group after the project's own headers.
+  - Regex: '^<Q'
+    Priority: 2
+  - Regex: '^"'
+    Priority: 1
+  - Regex: '^<(QtCore|QtGui|QtWidgets|QtNetwork|QtSql|QtCharts)'
+    Priority: 2
+  - Regex: '^<'
+    Priority: 3
+AlignConsecutiveAssignments: false
+AlignConsecutiveDeclarations: false
+DerivePointerAlignment: false
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 2
