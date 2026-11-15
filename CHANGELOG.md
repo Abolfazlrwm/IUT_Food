@@ -3,6 +3,66 @@
 All notable changes to IUT-Food are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/) (admittedly loosely).
 
+## [2.6.0] — 2026-11-15
+
+The "presentable product" release: everything a reviewer pokes before
+trusting a repo now matches what the code actually does, plus a live
+operations view inside the admin console.
+
+### Added
+- 🖥 **Live server-health tab in the admin console** — a new "سلامت سرور"
+  tab calls the admin-only `get_server_stats` command and shows uptime,
+  active/total sessions, accepted connections, TLS connections, served
+  and rate-limited requests and auth failures; it refreshes every time
+  the tab is opened or the refresh button is pressed.  (The command
+  existed since v2.2 — no client UI ever called it, while the README
+  already advertised "live server-health stats".)
+- 🚩 **`--no-demo-data` server flag** — real deployments can now start a
+  fresh database empty instead of silently seeding `admin/admin123`,
+  demo restaurants, pre-charged wallets and coupon codes.
+- ℹ️ **About dialog in the client launcher** — the GUI finally says which
+  release it is (the server had `--version` from the start).
+- 🧭 **CMakePresets.json** — `cmake --preset linux-release` /
+  `windows-release` with matching build and ctest presets.
+- 🎨 **`.clang-format` + `.clang-tidy`** — the code style that used to
+  live only in CONTRIBUTING prose is now a machine-readable baseline
+  (`clang-format -i` on touched files; the linter stays advisory).
+- 🧪 **Backup failure-path regression test** — a snapshot into a
+  read-only directory must fail with a truthful message and must not
+  leak its named SQLite connection (see the fix below).  Unit suite
+  count: eleven suites, 60 cases.
+- 📸 **Screenshot pipeline** — the driver captures a thirteenth window
+  (the server-health tab) and `scripts/convert_screenshots.py` documents
+  the PNG→WebP step that used to be tribal knowledge; three orphaned
+  screenshots from an older numbering scheme were dropped.
+
+### Fixed
+- 🧯 **BackupManager failure paths** — open()/`VACUUM INTO` failures
+  returned early and left a dead named connection in Qt's global
+  registry per failed snapshot (unbounded growth on an unwritable
+  backup directory), and `backupFinished(false, …)` emitted an **empty**
+  message because `m_lastError` was never written.  Both fixed; the new
+  regression test pins the behaviour.
+
+### Changed
+- 🔐 **CI actually exercises TLS now** — the Ubuntu leg runs the full
+  smoke suite a second time against a `--tls-cert/--tls-key` server
+  (README claimed this since v2.3; now it is true, and the push branch
+  filter of the workflow was double-checked while in there).
+- 🧾 **SECURITY.md rewritten** — the old policy still claimed "no TLS,
+  unsalted SHA-256, no session auth", i.e. it contradicted v2.1–v2.3.
+  It now carries the real supported-version matrix, the actual security
+  posture with pointers to the tests, and the honest remaining
+  limitation (clear-text credentials without TLS).
+- 📚 **CONTRIBUTING.md refreshed** — presets-based quick start, the
+  screenshot regeneration recipe, the one-version rule, and metric
+  numbers that no longer drift ("50+ checks" instead of a hardcoded
+  count from v2.0).
+- 🏷 **One version to rule them all** — `src/common/version.h` is the
+  single source of truth: CMake parses it into `project(VERSION)`, the
+  server `--version`, the client About dialog and the screenshot driver
+  all read the same macro (the driver still claimed 2.0.0 in v2.5).
+
 ## [2.5.0] — 2026-11-14
 
 The "operability" release: the server can now back itself up on a

@@ -50,6 +50,10 @@ server is not running, then syncs through the server whenever it is available.
 |---|---|
 | ![wallet](docs/screenshots/07_profile_wallet.webp) | ![admin](docs/screenshots/09_admin.webp) |
 
+| 🖥 Admin server-health tab (v2.6) | |
+|---|---|
+| ![server health](docs/screenshots/13_admin_server.webp) | |
+
 ## 🚀 Features
 
 ### Ordering experience
@@ -70,7 +74,9 @@ server is not running, then syncs through the server whenever it is available.
 - 🛡 **Admin** — credential-gated sign-in, user management (block / unblock / delete),
   restaurant approval workflow, order browser, coupon manager, **four live reports**
   (orders by status, revenue per restaurant, most active restaurants, average rating per
-  restaurant) rendered with Qt Charts, and live server-health stats
+  restaurant) rendered with Qt Charts, and a **live server-health tab (v2.6)** that reads
+  the admin-only `get_server_stats` command — uptime, sessions, connections, TLS usage,
+  served / rate-limited requests and auth failures
 - 🌙 **Dark & light themes** — full application-wide stylesheets, switched live from any
   window and persisted across restarts
 - 🔌 **Real-time server push** — status changes, chat messages and new-order events are
@@ -88,6 +94,10 @@ server is not running, then syncs through the server whenever it is available.
 - 💾 **Rolling backups + JSONL audit trail (v2.5)** — scheduled `VACUUM INTO`
   snapshots with retention, and one-JSON-object-per-line records of every
   login, moderation, wallet and order event (see the operations section)
+- 🚩 **Production-friendly deployment (v2.6)** — `--no-demo-data` starts a fresh
+  database empty (no demo accounts, no pre-charged wallets), CMake presets give
+  every platform a one-line configure, and the client launcher has an About
+  dialog that names the running release
 - 🌱 **Self-seeding demo data** — first launch creates restaurants, menus, orders, a review,
   wallet balance and coupons, so every screen has content immediately
 - 🎨 **Bundled Vazirmatn typeface** + full right-to-left UI — Persian renders identically on
@@ -174,13 +184,14 @@ erDiagram
 ```bash
 git clone https://github.com/Abolfazlrwm/IUT_Food.git
 cd IUT-Food
-cmake -B build -DCMAKE_BUILD_TYPE=Release
-cmake --build build -j
+cmake --preset linux-release          # windows-release on Windows; plain
+                                      # "cmake -B build" also works
+cmake --build build/linux-release -j
 
 # run the server (terminal 1)
-./build/iut-food-server
+./build/linux-release/iut-food-server
 # run the client (terminal 2)
-./build/iut-food-client
+./build/linux-release/iut-food-client
 ```
 
 ### Option B — qmake / Qt Creator
@@ -238,6 +249,7 @@ iut-food-server --tls-cert certs/server.crt --tls-key certs/server.key   # TLS m
 iut-food-server --log-file logs/server.log --log-level info              # v2.4 logging
 iut-food-server --backup-dir backups --backup-interval 60                # v2.5 snapshots
 iut-food-server --audit-file audit/audit.jsonl                           # v2.5 audit trail
+iut-food-server --no-demo-data                                           # v2.6 production start
 ```
 
 TLS demo in one line: `sh scripts/generate_certs.sh` creates a self-signed
@@ -268,7 +280,7 @@ is plain JSON Lines, rotated at 5 MiB with 3 generations kept.
 
 ## 🧪 Tests
 
-### Unit tests — eleven Qt Test suites, 59 cases
+### Unit tests — eleven Qt Test suites, 60 cases
 
 The business rules are covered by Qt Test suites that run against a scratch SQLite
 database (and one suite against the official RFC vectors):
@@ -284,14 +296,16 @@ database (and one suite against the official RFC vectors):
 | `users_tests` | registration/login, blocking, **transparent legacy-hash migration** |
 | `tls_tests` | TLS handshake against the bundled certificate, encrypted login/wallet round-trip, chat broadcast over TLS, plain-text clients rejected |
 | `logger_tests` | level filtering, size-based rotation generations, stderr-only fallback, level parser |
-| `backup_tests` | snapshot validity over a second connection, retention pruning, disabled and missing-source modes |
+| `backup_tests` | snapshot validity over a second connection, retention pruning, disabled and missing-source modes, **failure-path connection hygiene (v2.6)** |
 | `audit_tests` | JSONL record shape, rotation generations, disabled mode |
 
 ```bash
-ctest --test-dir build --output-on-failure    # 11 suites, 59 cases
+ctest --test-dir build --output-on-failure    # 11 suites, 60 cases
+# or, with the presets:
+ctest --preset linux-release
 ```
 
-### End-to-end smoke test — 52 protocol checks
+### End-to-end smoke test — 53 protocol checks
 
 `scripts/smoke_test.py` speaks the wire protocol against a running server and exercises
 every command — login and session tokens, filters, menu, ordering, status pushes, chat
@@ -301,7 +315,7 @@ admin role matrix, server stats and logout revocation.
 
 ```bash
 ./build/iut-food-server &        # start the server
-python3 scripts/smoke_test.py    # ✅ 52 checks
+python3 scripts/smoke_test.py    # ✅ 53 checks
 
 # the same suite over an encrypted channel:
 ./build/iut-food-server --tls-cert certs/server.crt --tls-key certs/server.key &
@@ -342,7 +356,7 @@ release workflow attaches portable Windows and Linux artifacts to every `v*` tag
 ```
 IUT-Food/
 ├── src/
-│   ├── common/          # shared data layer (SQLite, models, status machine, demo seed)
+│   ├── common/          # shared data layer (SQLite, models, status machine, demo seed, version.h)
 │   ├── client/          # Qt Widgets GUI (customer, restaurant, admin) + TCP client
 │   └── server/          # console TCP server (broadcasts + JSON command dispatch)
 ├── resources/           # qrc: WebP icons + bundled Vazirmatn fonts
@@ -352,11 +366,14 @@ IUT-Food/
 │   ├── images/          # hero banner (WebP)
 │   └── screenshots/     # real app screenshots (WebP)
 ├── scripts/
-│   ├── smoke_test.py         # end-to-end protocol test (52 checks)
+│   ├── smoke_test.py         # end-to-end protocol test (50+ checks)
 │   ├── benchmark.py          # latency / throughput harness
-│   └── screenshot_driver.cpp # offscreen capture driver for the docs
+│   ├── screenshot_driver.cpp # offscreen capture driver for the docs
+│   └── convert_screenshots.py # PNG → WebP for the gallery (v2.6)
 ├── tests/               # eleven Qt Test suites (run with ctest)
 ├── Dockerfile           # two-stage server image (+ docker-compose.yml)
+├── CMakePresets.json    # linux-release / linux-debug / windows-release (v2.6)
+├── .clang-format        # style + tidy baseline (v2.6)
 ├── .github/workflows/   # CI (Ubuntu + Windows build, tests, docker) + release pipeline
 └── CMakeLists.txt       # two targets: iut-food-client, iut-food-server
 ```
@@ -372,7 +389,9 @@ IUT-Food/
 - [x] Windows CI build + automated release artifacts (v2.2)
 - [x] TLS transport for remote deployments (v2.3)
 - [x] Rotating file logger, graceful shutdown and WAL-based database tuning (v2.4)
-- [x] Rolling SQLite backups and a JSONL audit trail (v2.5)
+- [x] Rotating SQLite backups and a JSONL audit trail (v2.5)
+- [x] Live server-health tab in the admin console + `--no-demo-data` for real deployments (v2.6)
+- [x] One version header, CMake presets, clang-format/tidy baseline and a truthful security policy (v2.6)
 - [ ] Per-order chat rooms instead of global broadcast
 - [ ] WebSocket transport option
 - [ ] Telegram bot for order notifications
@@ -396,8 +415,8 @@ test) and match the existing code style (4 spaces, `QStringLiteral`, documented 
 
 **IUT-Food** یک سامانه سفارش غذای دانشگاهی است که با Qt و C++17 ساخته شده:
 کلاینت گرافیکی برای مشتری، رستوران و مدیر + سرور TCP با قابلیت push لحظه‌ای وضعیت سفارش‌ها و چت.
-در نسخه ۲، **کیف پول، کدهای تخفیف، رهگیری زنده سفارش، حالت تاریک و علاقه‌مندی‌ها** اضافه شده‌اند؛
-نسخهٔ ۲.۴ **لاگ چرخشی و خاموشی تمیز** و نسخهٔ ۲.۵ **پشتیبان‌گیری چرخشی SQLite و گزارش حسابرسی JSONL** را می‌آورد.
+در نسخهٔ ۲، **کیف پول، کدهای تخفیف، رهگیری زنده سفارش، حالت تاریک و علاقه‌مندی‌ها** اضافه شده‌اند؛
+نسخهٔ ۲.۴ **لاگ چرخشی و خاموشی تمیز**، نسخهٔ ۲.۵ **پشتیبان‌گیری چرخشی SQLite و گزارش حسابرسی JSONL** و نسخهٔ ۲.۶ **تب سلامت سرور در پنل مدیریت، پرچم --no-demo-data برای استقرار واقعی و یک هدر نسخهٔ واحد** را می‌آورد.
 رابط کاربری کاملاً فارسی و راست‌به‌چپ است و داده‌های نمونه در اولین اجرا ساخته می‌شوند.
 
 ⭐ اگر این پروژه برایتان مفید بود، یک ستاره بزنید!
