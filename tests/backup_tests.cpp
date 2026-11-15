@@ -149,6 +149,39 @@ private slots:
         QString error;
         QVERIFY(!manager.backupNow(nullptr, &error));
         QVERIFY(!error.isEmpty());
+        QVERIFY(!manager.lastError().isEmpty());
+    }
+
+    //! v2.6 regression: a failed snapshot must not leak its named
+    //! connection into Qt's registry.  The old code returned early on
+    //! open()/VACUUM failures, so a server backing up to an unwritable
+    //! directory accumulated stale connections without bound - and the
+    //! backupFinished signal carried an empty message, because
+    //! m_lastError was never written on the failure paths.
+    void failureDropsTheConnectionAndSaysWhy()
+    {
+        // A read-only directory makes QSQLITE's open() fail for real:
+        // SQLite cannot create the destination-side journal there.
+        const QString readOnlyDir = m_dir.filePath(QStringLiteral("read-only"));
+        QDir().mkpath(readOnlyDir);
+        QFile::setPermissions(readOnlyDir, QFile::ReadOwner | QFile::ExeOwner);
+
+        BackupManager manager;
+        manager.configure(m_dbPath, readOnlyDir, 60, 5);
+        QString error;
+        QVERIFY(!manager.backupNow(nullptr, &error));
+        QVERIFY(!error.isEmpty());
+        QVERIFY(!manager.lastError().isEmpty());
+
+        const QStringList leftovers = QSqlDatabase::connectionNames().filter(
+            QStringLiteral("iut-food-backup-"));
+        QVERIFY2(leftovers.isEmpty(),
+                 qPrintable(QStringLiteral("leaked connections: %1")
+                                .arg(leftovers.join(QLatin1Char(',')))));
+
+        // Restore the permissions so QTemporaryDir can clean up.
+        QFile::setPermissions(readOnlyDir,
+                              QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
     }
 };
 
