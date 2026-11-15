@@ -50,20 +50,22 @@ public:
     //! Writes one snapshot and prunes old generations.  Returns false
     //! (with \p error filled in) when backups are disabled or the
     //! VACUUM failed; the destination path is returned via \p outPath.
+    //! Every failure also lands in lastError(), so the backupFinished
+    //! signal never carries an empty message.
     bool backupNow(QString *outPath = nullptr, QString *error = nullptr)
     {
-        if (m_dbPath.isEmpty() || m_dir.isEmpty()) {
+        const auto fail = [this, error](const QString &message) {
+            m_lastError = message;
             if (error)
-                *error = QStringLiteral("backups disabled: no database or directory");
+                *error = message;
             return false;
-        }
+        };
+        if (m_dbPath.isEmpty() || m_dir.isEmpty())
+            return fail(QStringLiteral("backups disabled: no database or directory"));
         // Refuse loudly when the source is gone: letting SQLite create
         // an empty file on connect would "back up" nothing silently.
-        if (!QFileInfo::exists(m_dbPath)) {
-            if (error)
-                *error = QStringLiteral("source database does not exist: %1").arg(m_dbPath);
-            return false;
-        }
+        if (!QFileInfo::exists(m_dbPath))
+            return fail(QStringLiteral("source database does not exist: %1").arg(m_dbPath));
         QDir().mkpath(m_dir);
         // Millisecond resolution: two snapshots within the same second
         // (timer due + shutdown snapshot) must never collide, because
@@ -79,35 +81,42 @@ public:
         static quint64 sequence = 0;
         const QString connection =
             QStringLiteral("iut-food-backup-%1").arg(quint64(sequence++));
+        QString failure;
         {
             QSqlDatabase db = QSqlDatabase::addDatabase(
                 QStringLiteral("QSQLITE"), connection);
             db.setDatabaseName(m_dbPath);
             if (!db.open()) {
-                if (error)
-                    *error = QStringLiteral("cannot open %1: %2")
-                                 .arg(m_dbPath, db.lastError().text());
-                return false;
-            }
-            QSqlQuery vacuum(db);
-            vacuum.prepare(QStringLiteral("VACUUM INTO :dest"));
-            vacuum.bindValue(QStringLiteral(":dest"), dest);
-            if (!vacuum.exec()) {
-                if (error)
-                    *error = QStringLiteral("VACUUM INTO failed: %1")
-                                 .arg(vacuum.lastError().text());
-                return false;
+                failure = QStringLiteral("cannot open %1: %2")
+                              .arg(m_dbPath, db.lastError().text());
+            } else {
+                QSqlQuery vacuum(db);
+                vacuum.prepare(QStringLiteral("VACUUM INTO :dest"));
+                vacuum.bindValue(QStringLiteral(":dest"), dest);
+                if (!vacuum.exec()) {
+                    failure = QStringLiteral("VACUUM INTO failed: %1")
+                                  .arg(vacuum.lastError().text());
+                }
             }
         }
+        // v2.6 fix: the throwaway connection is dropped on EVERY path.
+        // The old code returned early on failures, so every failed
+        // snapshot left a dead named connection in Qt's global registry -
+        // a server backing up to an unwritable directory accumulated
+        // stale connections without bound (and Qt warns about each one
+        // when the next snapshot reuses the default driver).
         QSqlDatabase::removeDatabase(connection);
-
-        if (QFile(dest).size() <= 0) {
+        if (!failure.isEmpty()) {
+            m_lastError = failure;
             if (error)
-                *error = QStringLiteral("snapshot %1 is empty").arg(dest);
-            QFile::remove(dest);
+                *error = failure;
             return false;
         }
+
+        if (QFile(dest).size() <= 0)
+            return fail(QStringLiteral("snapshot %1 is empty").arg(dest));
         m_lastPath = dest;
+        m_lastError.clear();
         if (outPath)
             *outPath = dest;
         pruneOldGenerations();
