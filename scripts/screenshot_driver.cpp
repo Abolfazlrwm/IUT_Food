@@ -29,6 +29,9 @@
 #include "restaurantlistdialog.h"
 #include "shoppingcart.h"
 #include "thememanager.h"
+#include "version.h"
+
+#include <QTabWidget>
 
 namespace {
 
@@ -57,7 +60,7 @@ int main(int argc, char *argv[])
     QApplication app(argc, argv);
     QApplication::setApplicationName(QStringLiteral("IUT-Food"));
     QApplication::setOrganizationName(QStringLiteral("IUT"));
-    QApplication::setApplicationVersion(QStringLiteral("2.0.0"));
+    QApplication::setApplicationVersion(QStringLiteral(IUT_FOOD_VERSION));
 
     g_outDir = (argc > 1) ? QString::fromLocal8Bit(argv[1]) : QStringLiteral(".");
     QDir().mkpath(g_outDir);
@@ -147,7 +150,7 @@ int main(int argc, char *argv[])
         // admin waits for the network pass below
     });
 
-    // ---- admin after data arrives, then the dark pass ------------------------
+    // ---- admin after data arrives, then the health tab, then dark -------
     QTimer::singleShot(3000, [&]() {
         // Make sure the admin console advertises the live connection.
         const auto labels = admin.findChildren<QLabel *>();
@@ -157,12 +160,20 @@ int main(int argc, char *argv[])
         }
         showGrabHide(&admin, QStringLiteral("09_admin"));
 
-        ThemeManager::apply(QStringLiteral("dark"));
-        showGrabHide(&launcher,   QStringLiteral("10_launcher_dark"));
-        showGrabHide(&clientArea, QStringLiteral("11_client_dark"));
-        showGrabHide(&checkout,   QStringLiteral("12_checkout_dark"));
+        // v2.6: give the server-health tab its own round-trip (the tab
+        // refetches get_server_stats on currentChanged) before grabbing it.
+        if (auto *tabs = admin.findChild<QTabWidget *>())
+            tabs->setCurrentIndex(4); // 🖥 سلامت سرور
+        QTimer::singleShot(1200, [&]() {
+            showGrabHide(&admin, QStringLiteral("13_admin_server"));
 
-        QApplication::quit();
+            ThemeManager::apply(QStringLiteral("dark"));
+            showGrabHide(&launcher,   QStringLiteral("10_launcher_dark"));
+            showGrabHide(&clientArea, QStringLiteral("11_client_dark"));
+            showGrabHide(&checkout,   QStringLiteral("12_checkout_dark"));
+
+            QApplication::quit();
+        });
     });
 
     return app.exec();

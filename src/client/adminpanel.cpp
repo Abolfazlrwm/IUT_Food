@@ -10,7 +10,9 @@
 #include <QChart>
 #include <QChartView>
 #include <QComboBox>
+#include <QFormLayout>
 #include <QHeaderView>
+#include <QHBoxLayout>
 #include <QInputDialog>
 #include <QLabel>
 #include <QLineEdit>
@@ -42,6 +44,7 @@ AdminPanel::AdminPanel(QWidget *parent)
         loadOrders();
         loadReviews();
         loadCoupons();
+        loadServerStats();
     });
     connect(m_network, &NetworkManager::disconnected, this, [this]() {
         m_connectionLabel->setText(QStringLiteral("🔴 اتصال قطع است — سرور را اجرا کنید"));
@@ -56,6 +59,7 @@ AdminPanel::AdminPanel(QWidget *parent)
         loadOrders();
         loadReviews();
         loadCoupons();
+        loadServerStats();
     }
 
     // Light/dark switch in the menu bar (admin console follows the app theme).
@@ -87,11 +91,20 @@ void AdminPanel::setupUI()
     setupOrdersTab();
     setupCouponsTab();
     setupReportsTab();
+    setupServerTab();
 
     tabWidget->addTab(userTab, QStringLiteral("مدیریت کاربران"));
     tabWidget->addTab(ordersTab, QStringLiteral("سفارش‌ها"));
     tabWidget->addTab(couponsTab, QStringLiteral("🎟 کدهای تخفیف"));
     tabWidget->addTab(reportsTab, QStringLiteral("گزارش‌ها"));
+    tabWidget->addTab(serverTab, QStringLiteral("🖥 سلامت سرور"));
+
+    // v2.6: opening the health tab refreshes the counters instead of
+    // showing stale numbers from whenever the panel was constructed.
+    connect(tabWidget, &QTabWidget::currentChanged, this, [this](int index) {
+        if (tabWidget->widget(index) == serverTab)
+            loadServerStats();
+    });
 
     setCentralWidget(central);
     setWindowTitle(QStringLiteral("IUT-Food — پنل مدیریت"));
@@ -233,6 +246,65 @@ void AdminPanel::loadReviews()
 void AdminPanel::loadCoupons()
 {
     m_network->sendJson(QJsonObject{{QStringLiteral("command"), QStringLiteral("get_coupons")}});
+}
+
+//! v2.6: one round-trip of the admin-only get_server_stats command keeps
+//! the health tab honest (uptime, sessions, connections, TLS, served and
+//! rejected requests, auth failures).
+void AdminPanel::loadServerStats()
+{
+    m_network->sendJson(QJsonObject{{QStringLiteral("command"), QStringLiteral("get_server_stats")}});
+}
+
+//! Builds the "سلامت سرور" tab: a read-only scoreboard of the live
+//! server counters with a manual refresh button.  The values come back
+//! through onServerResponse() as a get_server_stats reply.
+void AdminPanel::setupServerTab()
+{
+    serverTab = new QWidget(this);
+    auto *layout = new QVBoxLayout(serverTab);
+
+    auto *hint = new QLabel(
+        QStringLiteral("شمارنده‌های زندهٔ سرور — با باز کردن این تب یا دکمهٔ زیر تازه می‌شوند."),
+        serverTab);
+    hint->setAlignment(Qt::AlignCenter);
+    layout->addWidget(hint);
+
+    auto *form = new QFormLayout;
+    form->setSpacing(12);
+
+    const auto makeValueLabel = [this]() {
+        auto *label = new QLabel(QStringLiteral("—"), serverTab);
+        QFont bold = label->font();
+        bold.setBold(true);
+        bold.setPointSizeF(bold.pointSizeF() + 1.5);
+        label->setFont(bold);
+        label->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+        return label;
+    };
+    statUptime = makeValueLabel();
+    statSessions = makeValueLabel();
+    statSessionsTotal = makeValueLabel();
+    statConnections = makeValueLabel();
+    statTlsConnections = makeValueLabel();
+    statRequestsServed = makeValueLabel();
+    statRequestsRejected = makeValueLabel();
+    statAuthFailures = makeValueLabel();
+
+    form->addRow(QStringLiteral("مدت کار سرور:"), statUptime);
+    form->addRow(QStringLiteral("نشست‌های فعال:"), statSessions);
+    form->addRow(QStringLiteral("کل نشست‌های ایجادشده:"), statSessionsTotal);
+    form->addRow(QStringLiteral("اتصال‌های پذیرفته‌شده:"), statConnections);
+    form->addRow(QStringLiteral("اتصال‌های رمزگذاری‌شده (TLS):"), statTlsConnections);
+    form->addRow(QStringLiteral("درخواست‌های پاسخ‌داده‌شده:"), statRequestsServed);
+    form->addRow(QStringLiteral("درخواست‌های ردشده (محدودسازی نرخ):"), statRequestsRejected);
+    form->addRow(QStringLiteral("خطاهای احراز هویت:"), statAuthFailures);
+    layout->addLayout(form);
+    layout->addStretch();
+
+    btnRefreshStats = new QPushButton(QStringLiteral("🔄 به‌روزرسانی"), serverTab);
+    connect(btnRefreshStats, &QPushButton::clicked, this, &AdminPanel::loadServerStats);
+    layout->addWidget(btnRefreshStats, 0, Qt::AlignCenter);
 }
 
 //! Small wizard-style input chain: code, kind, value, minimum order and
@@ -514,6 +586,32 @@ void AdminPanel::onServerResponse(const QJsonObject &response)
             response.value(QLatin1String("success")).toBool()
                 ? QStringLiteral("رستوران رد شد.") : QStringLiteral("خطا در رد رستوران."));
         loadUsers();
+    }
+
+    else if (command == QLatin1String("get_server_stats")) {
+        // v2.6: fill the health tab.  The counters are 64-bit JSON
+        // numbers on the wire - read them through double so the code
+        // also compiles against the Qt 5.15 fallback.
+        const qint64 up = qint64(response.value(QLatin1String("uptime_seconds")).toDouble());
+        const qint64 hours = up / 3600;
+        const qint64 minutes = (up % 3600) / 60;
+        statUptime->setText(hours > 0
+            ? QStringLiteral("%1 ساعت و %2 دقیقه").arg(hours).arg(minutes)
+            : QStringLiteral("%1 دقیقه و %2 ثانیه").arg(minutes).arg(up % 60));
+        statSessions->setText(QString::number(
+            qint64(response.value(QLatin1String("active_sessions")).toDouble())));
+        statSessionsTotal->setText(QString::number(
+            qint64(response.value(QLatin1String("sessions_opened_total")).toDouble())));
+        statConnections->setText(QString::number(
+            qint64(response.value(QLatin1String("connections_accepted")).toDouble())));
+        statTlsConnections->setText(QString::number(
+            qint64(response.value(QLatin1String("tls_connections")).toDouble())));
+        statRequestsServed->setText(QString::number(
+            qint64(response.value(QLatin1String("requests_served")).toDouble())));
+        statRequestsRejected->setText(QString::number(
+            qint64(response.value(QLatin1String("requests_rejected")).toDouble())));
+        statAuthFailures->setText(QString::number(
+            qint64(response.value(QLatin1String("auth_failures")).toDouble())));
     }
 }
 
