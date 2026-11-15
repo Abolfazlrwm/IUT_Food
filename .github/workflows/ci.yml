@@ -56,6 +56,20 @@ jobs:
           exit $STATUS
         shell: bash
 
+      - name: Smoke test over TLS (Ubuntu leg)
+        if: runner.os == 'Linux'
+        run: |
+          SERVER=$( (ls build/iut-food-server* build/Release/iut-food-server* 2>/dev/null || true) | head -1 )
+          "$SERVER" --port 1235 --db ci_tls_server.db \
+            --tls-cert tests/certs/test_cert.pem --tls-key tests/certs/test_key.pem &
+          SERVER_PID=$!
+          sleep 3
+          python3 scripts/smoke_test.py --tls --port 1235 || python scripts/smoke_test.py --tls --port 1235
+          STATUS=$?
+          kill $SERVER_PID 2>/dev/null || true
+          exit $STATUS
+        shell: bash
+
       - name: Upload binaries
         uses: actions/upload-artifact@v7
         with:
