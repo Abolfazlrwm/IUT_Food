@@ -8,6 +8,7 @@
 #include "restaurant.h"
 #include "restaurantwindow.h"
 #include "thememanager.h"
+#include "version.h"
 
 #include <QAction>
 #include <QMenuBar>
@@ -26,6 +27,19 @@ MainWindow::MainWindow(QWidget *parent)
         themeAction->setText(ThemeManager::isDark()
                                  ? QStringLiteral("☀️ تم روشن")
                                  : QStringLiteral("🌙 تم تاریک"));
+    });
+
+    // v2.6: the launcher finally says which release you are running (the
+    // server had a --version flag from the start; the GUI had nothing).
+    QAction *aboutAction = menuBar()->addAction(QStringLiteral("درباره"));
+    connect(aboutAction, &QAction::triggered, this, []() {
+        QMessageBox::about(nullptr, QStringLiteral("درباره IUT-Food"),
+                           QStringLiteral("<b>IUT-Food %1</b>"
+                                          "<br>سامانه سفارش غذای دانشگاه"
+                                          "<br>کلاینت و سرور Qt/C++17 با پروتکل JSON روی TCP"
+                                          "<br>ساخته‌شده با Qt %2")
+                               .arg(QStringLiteral(IUT_FOOD_VERSION),
+                                    QLatin1String(qVersion())));
     });
 }
 

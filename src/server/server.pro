@@ -29,4 +29,5 @@ HEADERS += \
     ../common/passwordhasher.h \
     ../common/ratelimiter.h \
     ../common/sessionmanager.h \
-    ../common/user.h
+    ../common/user.h \
+    ../common/version.h
