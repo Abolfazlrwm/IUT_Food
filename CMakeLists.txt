@@ -1,7 +1,19 @@
 cmake_minimum_required(VERSION 3.16)
 
+# The release version lives in src/common/version.h and is parsed here so
+# the executables, the About dialog and the release artifacts all quote
+# the same number.  Bumping a release now means editing version.h only.
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/src/common/version.h" IUT_FOOD_VERSION_H)
+string(REGEX MATCH "#define IUT_FOOD_VERSION \"([0-9]+\\.[0-9]+\\.[0-9]+)\""
+    IUT_FOOD_VERSION_MATCH "${IUT_FOOD_VERSION_H}")
+if(NOT IUT_FOOD_VERSION_MATCH)
+    message(FATAL_ERROR "Cannot parse IUT_FOOD_VERSION from src/common/version.h")
+endif()
+set(IUT_FOOD_VERSION "${CMAKE_MATCH_1}")
+message(STATUS "IUT-Food version: ${IUT_FOOD_VERSION}")
+
 project(IUT-Food
-    VERSION 2.5.0
+    VERSION ${IUT_FOOD_VERSION}
     DESCRIPTION "Campus food-ordering system built with Qt"
     LANGUAGES CXX)
 
@@ -26,6 +38,7 @@ add_library(iutfood_core STATIC
     src/common/demodata.h
     src/common/datatypes.h
     src/common/fooditem.h
+    src/common/version.h
     src/common/auditlog.h
     src/common/backupmanager.h
     src/common/logger.h

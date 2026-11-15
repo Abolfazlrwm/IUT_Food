@@ -57,7 +57,8 @@ HEADERS += \
     ../common/fooditem.h \
     ../common/order.h \
     ../common/orderstatus.h \
-    ../common/user.h
+    ../common/user.h \
+    ../common/version.h
 
 FORMS += \
     client.ui \

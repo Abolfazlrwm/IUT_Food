@@ -8,12 +8,14 @@
 #include "demodata.h"
 #include "mainwindow.h"
 #include "thememanager.h"
+#include "version.h"
 
 int main(int argc, char *argv[])
 {
     QApplication app(argc, argv);
     QApplication::setApplicationName(QStringLiteral("IUT-Food"));
     QApplication::setOrganizationName(QStringLiteral("IUT"));
+    QApplication::setApplicationVersion(QStringLiteral(IUT_FOOD_VERSION));
 
     // Ship the Vazirmatn typeface so Persian text renders identically on
     // Windows, Linux and macOS instead of falling back to Tahoma.
