@@ -1,0 +1,55 @@
+{
+    "version": 3,
+    "cmakeMinimumRequired": { "major": 3, "minor": 21, "patch": 0 },
+    "configurePresets": [
+        {
+            "name": "base",
+            "hidden": true,
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_EXPORT_COMPILE_COMMANDS": "ON"
+            }
+        },
+        {
+            "name": "linux-release",
+            "inherits": "base",
+            "displayName": "Linux release (Ninja)",
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+        },
+        {
+            "name": "linux-debug",
+            "inherits": "base",
+            "displayName": "Linux debug (Ninja, sanitizers off)",
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "Debug" }
+        },
+        {
+            "name": "windows-release",
+            "inherits": "base",
+            "displayName": "Windows x64 release (Ninja)",
+            "cacheVariables": { "CMAKE_BUILD_TYPE": "Release" }
+        }
+    ],
+    "buildPresets": [
+        { "name": "linux-release", "configurePreset": "linux-release" },
+        { "name": "linux-debug", "configurePreset": "linux-debug" },
+        { "name": "windows-release", "configurePreset": "windows-release" }
+    ],
+    "testPresets": [
+        {
+            "name": "linux-release",
+            "configurePreset": "linux-release",
+            "output": { "outputOnFailure": true }
+        },
+        {
+            "name": "linux-debug",
+            "configurePreset": "linux-debug",
+            "output": { "outputOnFailure": true }
+        },
+        {
+            "name": "windows-release",
+            "configurePreset": "windows-release",
+            "output": { "outputOnFailure": true }
+        }
+    ]
+}
