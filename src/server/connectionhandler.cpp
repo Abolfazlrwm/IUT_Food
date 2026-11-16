@@ -4,6 +4,11 @@
 #include "logger.h"
 #include "orderstatus.h"
 #include "server.h"
+#include "version.h"
+#include "version.h"
+#include "version.h"
+#include "version.h"
+#include "version.h"
 
 #include <QDebug>
 #include <QDateTime>
@@ -152,6 +157,24 @@ bool ConnectionHandler::orderBelongsToRestaurant(int orderId, int restaurantId)
 // management commands, restaurant ownership and per-user wallet access
 // are enforced here - a client-sent user_id is never trusted on its own.
 // =======================================================================
+
+//! v2.7 version-handshake helper.  True when the reported client major
+//! version is older than the server's - the only crossing that has ever
+//! meant "protocol changed under you" in this project (v2.2 auth, v2.5
+//! audit).  Minor-version drift is tolerated on both sides.
+static bool isOutdatedClient(const QString &clientVersion)
+{
+    const QStringList parts = clientVersion.split(QLatin1Char('.'));
+    bool ok = false;
+    const int clientMajor = parts.value(0).toInt(&ok);
+    if (!ok || clientMajor < 0)
+        return false; // garbage in the field - assume capable, don't nag
+    bool serverOk = false;
+    const int serverMajor =
+        QString::fromLatin1(IUT_FOOD_VERSION).section(QLatin1Char('.'), 0, 0).toInt(&serverOk);
+    return serverOk && clientMajor < serverMajor;
+}
+
 void ConnectionHandler::processCommand(const QJsonObject &request)
 {
     QElapsedTimer requestTimer;
@@ -180,6 +203,21 @@ void ConnectionHandler::dispatchCommand(const QJsonObject &request)
     response[QLatin1String("type")] = QLatin1String("response");
     response[QLatin1String("command")] = command;
 
+    // ---------------------- liveness probe (v2.7) ----------------------
+    // The only other unauthenticated command: a zero-argument ping so
+    // `--healthcheck`, load balancers and orchestrators can verify the
+    // listener without credentials.  Carries the release version so a
+    // plain probe doubles as a compatibility check.
+    if (command == QLatin1String("ping")) {
+        response[QLatin1String("type")] = QLatin1String("pong");
+        response[QLatin1String("server_version")] =
+            QString::fromLatin1(IUT_FOOD_VERSION);
+        response[QLatin1String("server_time")] =
+            qlonglong(QDateTime::currentMSecsSinceEpoch());
+        sendJson(response);
+        return;
+    }
+
     // ------------------------------ login ------------------------------
     if (command == QLatin1String("login")) {
         const QString username = request.value(QLatin1String("username")).toString();
@@ -191,6 +229,17 @@ void ConnectionHandler::dispatchCommand(const QJsonObject &request)
         response[QLatin1String("success")] = success;
         response[QLatin1String("role")] = role;
         response[QLatin1String("user_id")] = userId;
+        // v2.7: version handshake.  Every login reply names the release,
+        // and an optional client_version gets a compatibility verdict so
+        // an outdated client can warn its user instead of failing in
+        // confusing ways later.  Purely additive: older clients simply
+        // ignore the new fields.
+        response[QLatin1String("server_version")] =
+            QString::fromLatin1(IUT_FOOD_VERSION);
+        const QString clientVersion =
+            request.value(QLatin1String("client_version")).toString();
+        if (!clientVersion.isEmpty() && isOutdatedClient(clientVersion))
+            response[QLatin1String("warning")] = QLatin1String("outdated_client");
         if (success && m_sessions) {
             const qint64 now = QDateTime::currentMSecsSinceEpoch();
             const QString token = m_sessions->openSession(username, role, userId, now);
