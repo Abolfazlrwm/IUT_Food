@@ -27,10 +27,14 @@ operations view inside the admin console.
 - 🎨 **`.clang-format` + `.clang-tidy`** — the code style that used to
   live only in CONTRIBUTING prose is now a machine-readable baseline
   (`clang-format -i` on touched files; the linter stays advisory).
-- 🧪 **Backup failure-path regression test** — a snapshot into a
-  read-only directory must fail with a truthful message and must not
-  leak its named SQLite connection (see the fix below).  Unit suite
-  count: eleven suites, 60 cases.
+- 🧪 **Backup failure-path regression test** — a snapshot into an
+  unwritable destination must fail with a truthful message and must not
+  leak its named SQLite connection (see the fix below).  The blocked
+  destination is built portably (a regular file where the backup
+  directory belongs): the first cut chmod'ed a directory read-only,
+  which Windows ignores for folders, so the suite failed on
+  windows-2022 while Ubuntu stayed green.  Unit suite count: eleven
+  suites, 60 cases.
 - 📸 **Screenshot pipeline** — the driver captures a thirteenth window
   (the server-health tab) and `scripts/convert_screenshots.py` documents
   the PNG→WebP step that used to be tribal knowledge; three orphaned

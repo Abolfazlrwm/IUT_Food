@@ -158,16 +158,26 @@ private slots:
     //! directory accumulated stale connections without bound - and the
     //! backupFinished signal carried an empty message, because
     //! m_lastError was never written on the failure paths.
+    //!
+    //! The unwritable destination is engineered portably: a regular
+    //! FILE occupies the path where the backup directory belongs, so
+    //! SQLite can never create the snapshot journal there - on every
+    //! platform CI runs on.  The first cut of this test chmod'ed a
+    //! directory read-only instead, which is a no-op on NTFS: Windows
+    //! ignores the read-only bit for folders, the snapshot quietly
+    //! succeeded and the suite failed on windows-2022 while Ubuntu
+    //! stayed green.
     void failureDropsTheConnectionAndSaysWhy()
     {
-        // A read-only directory makes QSQLITE's open() fail for real:
-        // SQLite cannot create the destination-side journal there.
-        const QString readOnlyDir = m_dir.filePath(QStringLiteral("read-only"));
-        QDir().mkpath(readOnlyDir);
-        QFile::setPermissions(readOnlyDir, QFile::ReadOwner | QFile::ExeOwner);
+        const QString occupied = m_dir.filePath(QStringLiteral("occupied"));
+        QFile blocker(occupied);
+        QVERIFY(blocker.open(QIODevice::WriteOnly));
+        blocker.write("a regular file, not a directory\n");
+        blocker.close();
 
         BackupManager manager;
-        manager.configure(m_dbPath, readOnlyDir, 60, 5);
+        manager.configure(m_dbPath,
+                          occupied + QStringLiteral("/backups"), 60, 5);
         QString error;
         QVERIFY(!manager.backupNow(nullptr, &error));
         QVERIFY(!error.isEmpty());
@@ -178,10 +188,6 @@ private slots:
         QVERIFY2(leftovers.isEmpty(),
                  qPrintable(QStringLiteral("leaked connections: %1")
                                 .arg(leftovers.join(QLatin1Char(',')))));
-
-        // Restore the permissions so QTemporaryDir can clean up.
-        QFile::setPermissions(readOnlyDir,
-                              QFile::ReadOwner | QFile::WriteOwner | QFile::ExeOwner);
     }
 };
 
