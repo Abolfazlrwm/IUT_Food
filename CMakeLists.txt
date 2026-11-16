@@ -156,7 +156,10 @@ if (Qt${QT_VERSION_MAJOR}Test_FOUND)
         tls_tests
         logger_tests
         backup_tests
-        audit_tests)
+        audit_tests
+        metrics_tests
+        csv_tests
+        handshake_tests)
 
     foreach(suite IN LISTS IUT_TEST_SUITES)
         add_executable(${suite} tests/${suite}.cpp)
@@ -170,6 +173,13 @@ if (Qt${QT_VERSION_MAJOR}Test_FOUND)
         Qt${QT_VERSION_MAJOR}::Network)
     target_compile_definitions(tls_tests PRIVATE
         IUT_TEST_CERT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/tests/certs")
+
+    # The v2.7 metrics + handshake suites also boot the real server
+    # (plain TCP, ephemeral ports) to pin the wire behaviour.
+    target_link_libraries(metrics_tests PRIVATE iutfood_server
+        Qt${QT_VERSION_MAJOR}::Network)
+    target_link_libraries(handshake_tests PRIVATE iutfood_server
+        Qt${QT_VERSION_MAJOR}::Network)
 else()
     message(STATUS "Qt Test not found - unit tests will not be built")
 endif()
