@@ -25,6 +25,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=build /src/build/iut-food-server /app/iut-food-server
+
+# v2.7: the container reports its own health.  The probe runs the same
+# binary in --healthcheck mode - it sends the unauthenticated ping
+# command over TCP and expects a pong naming the release.  Orchestrators
+# (and `docker ps`) see "healthy" without any extra tooling inside the
+# image.
+HEALTHCHECK --interval=30s --timeout=5s --start-period=15s --retries=3 \
+    CMD ["/app/iut-food-server", "--healthcheck", "--port", "1234"]
+
 VOLUME /data
 EXPOSE 1234
 ENTRYPOINT ["/app/iut-food-server"]

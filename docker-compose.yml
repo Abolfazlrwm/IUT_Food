@@ -16,18 +16,31 @@
 # to /data/backups and a JSONL audit trail to /data/audit/audit.jsonl
 # inside the same volume - snapshots survive `docker stop`, and every
 # login, moderation and wallet event is on the record.
+#
+# Observability (v2.7): the main service also serves Prometheus metrics
+# on http://localhost:9101/metrics (scrape config in docs/METRICS.md),
+# and both services expose a Docker healthcheck driven by the new
+# `--healthcheck` probe - `docker ps` shows a green "healthy" state.
 services:
   server:
     build: .
     image: iut-food-server
     ports:
       - "1234:1234"
+      - "9101:9101"
     volumes:
       - iut-food-data:/data
     command: ["--port", "1234", "--db", "/data/iut_food.db",
               "--log-file", "/data/logs/server.log", "--log-level", "info",
               "--backup-dir", "/data/backups", "--backup-interval", "60",
-              "--audit-file", "/data/audit/audit.jsonl"]
+              "--audit-file", "/data/audit/audit.jsonl",
+              "--metrics-port", "9101"]
+    healthcheck:
+      test: ["CMD", "/app/iut-food-server", "--healthcheck", "--port", "1234"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
     restart: unless-stopped
 
   # Same image, started with the TLS flags; the certificate is expected
@@ -47,6 +60,12 @@ services:
               "--log-file", "/data/logs/server.log", "--log-level", "info",
               "--backup-dir", "/data/backups", "--backup-interval", "60",
               "--audit-file", "/data/audit/audit.jsonl"]
+    healthcheck:
+      test: ["CMD", "/app/iut-food-server", "--healthcheck", "--port", "1234"]
+      interval: 30s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
     restart: unless-stopped
 
 volumes:

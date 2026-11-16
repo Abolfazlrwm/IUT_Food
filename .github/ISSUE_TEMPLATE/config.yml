@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: IUT-Food documentation
+    url: https://github.com/Abolfazlrwm/IUT_Food/blob/main/README.md
+    about: Build instructions, feature overview, architecture and operations guides.
