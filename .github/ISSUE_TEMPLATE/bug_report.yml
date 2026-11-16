@@ -1,0 +1,71 @@
+name: Bug report
+description: Something in IUT-Food behaves differently from the docs.
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time to report this. Before filing, please
+        check the latest release notes - a bug fixed between releases is
+        usually already documented there.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Which component?
+      options:
+        - "iut-food-client (GUI)"
+        - "iut-food-server (console)"
+        - "Docker / docker-compose"
+        - "CI / build system"
+        - "Documentation"
+    validations:
+      required: true
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect instead? Screenshots of the client UI help a lot.
+      placeholder: The checkout dialog crashed when I used a percent coupon on an empty cart.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Start `iut-food-server --port 1234`
+        2. Log in as demo_customer
+        3. ...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platform
+      options:
+        - "Linux"
+        - "Windows"
+        - "macOS"
+        - "Docker container"
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Release version
+      description: From the client About dialog, the server banner, or `iut-food-server --version`.
+      placeholder: "2.7.0"
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: The last lines of `server.log` (or stderr) around the failure. Markdown code fences, please.
+      render: shell

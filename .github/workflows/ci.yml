@@ -81,6 +81,36 @@ jobs:
             build/Release/iut-food-server*
           if-no-files-found: error
 
+  sanitizers:
+    name: ASan + UBSan clean run (Ubuntu)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Qt 6.8
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8"
+          modules: qtcharts qtimageformats
+          cache: true
+
+      # The whole suite compiled with -fsanitize=address,undefined and
+      # -fno-sanitize-recover=all: any heap overflow, use-after-free or
+      # undefined behaviour in project code turns every following test
+      # red.  Leak detection stays off in the preset environment - Qt
+      # keeps intentional process-lifetime singletons that LeakSanitizer
+      # would otherwise report as false positives.
+      - name: Configure (ASan + UBSan preset)
+        run: cmake --preset linux-asan
+
+      - name: Build
+        run: cmake --build --preset linux-asan -j"$(nproc 2>/dev/null || echo 4)"
+        shell: bash
+
+      - name: Unit tests under sanitizers
+        run: ctest --preset linux-asan
+
   docker:
     name: Docker image & container smoke test
     runs-on: ubuntu-24.04
@@ -98,3 +128,15 @@ jobs:
           python3 scripts/smoke_test.py
           docker logs iut-server 2>&1 | tail -5
           docker rm -f iut-server > /dev/null
+
+      - name: HEALTHCHECK goes green (inspect reports healthy)
+        run: |
+          docker run -d --name iut-hc iut-food-server
+          for i in $(seq 1 12); do
+            STATUS=$(docker inspect --format '{{.State.Health.Status}}' iut-hc 2>/dev/null || echo starting)
+            echo "health: $STATUS"
+            [ "$STATUS" = "healthy" ] && break
+            sleep 5
+          done
+          [ "$STATUS" = "healthy" ] || { docker logs iut-hc >&2; exit 1; }
+          docker rm -f iut-hc > /dev/null

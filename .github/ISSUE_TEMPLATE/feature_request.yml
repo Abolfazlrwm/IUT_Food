@@ -1,0 +1,40 @@
+name: Feature request
+description: Suggest an idea that would make IUT-Food better.
+labels: ["enhancement"]
+body:
+  - type: dropdown
+    id: area
+    attributes:
+      label: Which area is this about?
+      options:
+        - "Customer experience (ordering, cart, tracking)"
+        - "Restaurant owner experience"
+        - "Admin console"
+        - "Server / protocol / deployment"
+        - "Something else"
+    validations:
+      required: true
+
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem does this solve?
+      description: Describe the workflow that is currently awkward or missing.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: What should happen instead? Feel free to sketch the UI or the protocol change.
+    validations:
+      required: true
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Are you willing to help implement it?
+      options:
+        - label: I can test a preview build
+        - label: I can submit a pull request
