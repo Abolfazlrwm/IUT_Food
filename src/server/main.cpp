@@ -1,17 +1,24 @@
 #include <QCoreApplication>
 #include <QCommandLineParser>
+#include <QDeadlineTimer>
 #include <QHostAddress>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QTcpSocket>
 #include <QTimer>
 #include <QDebug>
 #include <atomic>
 #include <csignal>
+#include <cstdio>
 
 #include "databasehandler.h"
 #include "demodata.h"
 #include "auditlog.h"
 #include "backupmanager.h"
 #include "logger.h"
+#include "metricsserver.h"
 #include "server.h"
+#include "version.h"
 
 namespace {
 
@@ -46,13 +53,52 @@ void installStopHandlers()
 }
 #endif
 
+//! v2.7: the self-probe behind --healthcheck.  Connects like a mini
+//! client, sends the unauthenticated ping command and waits for a pong
+//! that names the server release.  Deliberately runs BEFORE the data-
+//! base is opened: the probe binary is the same executable, but a
+//! health check must never touch (or lock) the SQLite file of the
+//! process it is probing - and inside the container the probe runs
+//! while the real server already owns the database.
+bool runHealthCheck(const QString &host, quint16 port, int timeoutMs = 5000)
+{
+    QTcpSocket socket;
+    socket.connectToHost(host, port);
+    if (!socket.waitForConnected(timeoutMs)) {
+        std::fputs("unhealthy: cannot connect\n", stderr);
+        return false;
+    }
+    socket.write(QByteArrayLiteral("{\"command\":\"ping\"}\n"));
+    socket.flush();
+    const QDeadlineTimer deadline(timeoutMs);
+    while (!deadline.hasExpired()) {
+        if (!socket.waitForReadyRead(qMax(1, int(deadline.remainingTime()))))
+            break;
+        while (socket.canReadLine()) {
+            const QJsonObject obj =
+                QJsonDocument::fromJson(socket.readLine().trimmed()).object();
+            if (obj.value(QLatin1String("type")).toString() == QLatin1String("pong")) {
+                std::printf("healthy: server version %s\n",
+                            qPrintable(obj.value(QLatin1String("server_version"))
+                                           .toString()));
+                return true;
+            }
+        }
+    }
+    std::fputs("unhealthy: no pong within the timeout\n", stderr);
+    return false;
+}
+
 } // namespace
 
 int main(int argc, char *argv[])
 {
     QCoreApplication app(argc, argv);
     QCoreApplication::setApplicationName(QStringLiteral("IUT-Food Server"));
-    QCoreApplication::setApplicationVersion(QStringLiteral("2.5.0"));
+    // v2.7: this used to be a hand-synced QStringLiteral("2.5.0") that
+    // drifted while the changelog claimed one version header - it now
+    // reads the same macro as CMake and the client About dialog.
+    QCoreApplication::setApplicationVersion(QString::fromLatin1(IUT_FOOD_VERSION));
 
     QCommandLineParser parser;
     parser.setApplicationDescription(QStringLiteral(
@@ -109,10 +155,36 @@ int main(int argc, char *argv[])
                                                       "moderation, wallet moves) to this "
                                                       "JSONL file (rotated at 5 MiB)."),
                                        QStringLiteral("file"));
+    // v2.7: Prometheus scrape endpoint + the container health check.
+    QCommandLineOption metricsPortOption(QStringLiteral("metrics-port"),
+                                         QStringLiteral("Serve Prometheus metrics (GET "
+                                                        "/metrics, plain HTTP) on this "
+                                                        "port. Without it, metrics stay "
+                                                        "disabled."),
+                                         QStringLiteral("port"));
+    QCommandLineOption healthCheckOption(QStringLiteral("healthcheck"),
+                                         QStringLiteral("Probe a running server (send "
+                                                        "ping, expect pong) and exit "
+                                                        "0/1 instead of serving.  Used "
+                                                        "by Docker HEALTHCHECK."));
+    QCommandLineOption hostOption(QStringLiteral("host"),
+                                  QStringLiteral("Host for --healthcheck (default "
+                                                 "127.0.0.1)."),
+                                  QStringLiteral("host"),
+                                  QStringLiteral("127.0.0.1"));
     parser.addOptions({portOption, dbOption, tlsCertOption, tlsKeyOption,
                        logFileOption, logLevelOption, backupDirOption,
-                       backupIntervalOption, backupKeepOption, auditFileOption});
+                       backupIntervalOption, backupKeepOption, auditFileOption,
+                       metricsPortOption, healthCheckOption, hostOption});
     parser.process(app);
+
+    // v2.7: the health check must run before any database is touched -
+    // it probes a REMOTE server, and inside the container the real
+    // server already owns the SQLite file.
+    if (parser.isSet(healthCheckOption)) {
+        const quint16 probePort = quint16(qMax(1, parser.value(portOption).toInt()));
+        return runHealthCheck(parser.value(hostOption), probePort) ? 0 : 1;
+    }
 
     Logger::instance().configure(parser.value(logFileOption),
                                  Logger::levelFromString(parser.value(logLevelOption)));
@@ -160,6 +232,20 @@ int main(int argc, char *argv[])
         LOG_INFO("server", QString("log file: %1").arg(parser.value(logFileOption)));
     if (parser.isSet(auditFileOption))
         LOG_INFO("server", QString("audit file: %1").arg(parser.value(auditFileOption)));
+
+    // v2.7: optional Prometheus scrape endpoint.  Plain HTTP on purpose
+    // (scraping runs on an internal network); see docs/METRICS.md.
+    MetricsServer metrics(&server);
+    if (parser.isSet(metricsPortOption)) {
+        const quint16 metricsPort = quint16(qMax(1, parser.value(metricsPortOption).toInt()));
+        if (!metrics.listen(QHostAddress::Any, metricsPort)) {
+            LOG_ERROR("server", QString("failed to open the metrics port %1: %2")
+                                    .arg(metricsPort).arg(metrics.errorString()));
+            return 1;
+        }
+        LOG_INFO("server", QString("Prometheus metrics on http://0.0.0.0:%1/metrics")
+                               .arg(metricsPort));
+    }
 
     // v2.5: rolling backups.  The manager owns a QTimer on this event
     // loop; it takes a baseline snapshot right away and then one every

@@ -16,6 +16,7 @@ SOURCES += \
 
 HEADERS += \
     connectionhandler.h \
+    metricsserver.h \
     server.h \
     ../common/databasehandler.h \
     ../common/auditlog.h \
