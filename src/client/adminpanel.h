@@ -37,6 +37,9 @@ private slots:
     void approveSelectedRestaurant();
     void disapproveSelectedRestaurant();
     void generateChart();
+    //! v2.7: one-click CSV exports (reports + order browser).
+    void exportReportCsv();
+    void exportOrdersCsv();
     void onServerResponse(const QJsonObject &response);
 
 private:
@@ -49,6 +52,10 @@ private:
     void setupConnections();
     int getSelectedUserId() const;
     int getSelectedCouponId() const;
+    //! v2.7: saves a headers/rows table next to the dialogs, shared by
+    //! both export buttons; returns false when the user cancels.
+    bool saveCsvFile(const QString &suggestedName, const QStringList &headers,
+                     const QList<QStringList> &rows);
 
     void showOrdersByStatusChart();
     void showRestaurantRevenueChart();
@@ -59,6 +66,11 @@ private:
     QJsonObject m_lastOrders;
     QJsonObject m_lastReviews;
     QJsonObject m_lastCoupons;
+
+    //! v2.7: the table behind the currently displayed report, captured
+    //! by every show*Chart() so "خروجی CSV" exports what is on screen.
+    QStringList m_reportHeaders;
+    QList<QStringList> m_reportRows;
 
     QTabWidget *tabWidget;
     QWidget *userTab;
@@ -77,6 +89,7 @@ private:
 
     QTableWidget *tableOrders;
     QPushButton *btnRefreshOrders;
+    QPushButton *btnExportOrders;   //!< v2.7: CSV dump of the order browser
 
     QTableWidget *tableCoupons;
     QPushButton *btnAddCoupon;
@@ -85,6 +98,7 @@ private:
 
     QComboBox *comboChartType;
     QPushButton *btnGenerateChart;
+    QPushButton *btnExportCsv;      //!< v2.7: CSV dump of the shown report
     QChartView *chartView;
 
     // v2.6: live server-health tab (get_server_stats, admin only).

@@ -52,6 +52,7 @@ HEADERS += \
     shoppingcartpopup.h \
     thememanager.h \
     ../common/databasehandler.h \
+    ../common/csvwriter.h \
     ../common/demodata.h \
     ../common/datatypes.h \
     ../common/fooditem.h \
