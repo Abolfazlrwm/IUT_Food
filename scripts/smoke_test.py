@@ -132,6 +132,15 @@ def main():
         check("TLS cipher suite is in use",
               isinstance(cipher, tuple) and len(cipher[0]) > 0, str(cipher))
 
+    # ---- v2.7 liveness probe + version handshake ----------------------
+    r = admin.request({"command": "ping"})
+    check("ping answers pong without a session",
+          r.get("type") == "pong" and r.get("command") == "ping", str(r)[:90])
+    check("pong names the server release",
+          isinstance(r.get("server_version"), str) and r.get("server_version") != "")
+    check("pong carries a server timestamp",
+          isinstance(r.get("server_time"), int) and r["server_time"] > 0)
+
     # ---- v2.2 authentication -----------------------------------------
     r = admin.request({"command": "get_users"})
     check("request without token rejected",
@@ -139,11 +148,27 @@ def main():
 
     r = admin.request({"command": "login", "username": "admin", "password": "admin123"})
     check("login admin", r.get("success") is True and r.get("role") == "admin", str(r)[:80])
+    check("login announces the server release",
+          r.get("server_version") != "", str(r.get("server_version")))
     check("login mints a 256-bit session token",
           isinstance(r.get("session_token"), str) and len(r["session_token"]) == 64,
           f"len={len(r.get('session_token', ''))}")
     check("login reports session lifetime",
           isinstance(r.get("expires_in"), int) and r["expires_in"] >= 600)
+
+    # v2.7: an outdated client major version is told about it in the
+    # login response; a throwaway client keeps the main clients' tokens
+    # untouched.
+    outdated = Client("outdated")
+    r = outdated.request({"command": "login", "username": "admin",
+                          "password": "admin123", "client_version": "1.0.0"})
+    check("outdated client_version earns a warning",
+          r.get("success") is True and r.get("warning") == "outdated_client", str(r)[:90])
+    r = outdated.request({"command": "login", "username": "demo_customer",
+                          "password": "123456", "client_version": "99.0.0"})
+    check("same-or-newer client_version stays warning-free",
+          r.get("success") is True and "warning" not in r, str(r)[:90])
+    outdated.close()
 
     r = customer.request({"command": "login", "username": "demo_customer", "password": "123456"})
     check("login customer", r.get("success") is True and r.get("role") == "customer"
