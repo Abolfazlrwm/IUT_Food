@@ -1,5 +1,6 @@
 #include "adminpanel.h"
 
+#include "csvwriter.h"
 #include "networkmanager.h"
 #include "orderstatus.h"
 #include "thememanager.h"
@@ -10,6 +11,9 @@
 #include <QChart>
 #include <QChartView>
 #include <QComboBox>
+#include <QDir>
+#include <QFile>
+#include <QFileDialog>
 #include <QFormLayout>
 #include <QHeaderView>
 #include <QHBoxLayout>
@@ -150,8 +154,14 @@ void AdminPanel::setupOrdersTab()
     tableOrders->setSelectionBehavior(QAbstractItemView::SelectRows);
     tableOrders->setEditTriggers(QAbstractItemView::NoEditTriggers);
     btnRefreshOrders = new QPushButton(QStringLiteral("به‌روزرسانی سفارش‌ها"));
+    // v2.7: hand the whole order browser to a spreadsheet when needed.
+    btnExportOrders = new QPushButton(QStringLiteral("⬇️ خروجی CSV"));
+    auto *buttons = new QHBoxLayout();
+    buttons->addWidget(btnRefreshOrders);
+    buttons->addWidget(btnExportOrders);
+    buttons->addStretch();
     layout->addWidget(tableOrders);
-    layout->addWidget(btnRefreshOrders);
+    layout->addLayout(buttons);
 }
 
 void AdminPanel::setupCouponsTab()
@@ -189,8 +199,12 @@ void AdminPanel::setupReportsTab()
         QStringLiteral("میانگین امتیاز رستوران‌ها"),
     });
     btnGenerateChart = new QPushButton(QStringLiteral("نمایش نمودار"));
+    // v2.7: the chart is for the screen, the CSV is for the report
+    // attachment - same table, one click apart.
+    btnExportCsv = new QPushButton(QStringLiteral("⬇️ خروجی CSV"));
     topLayout->addWidget(comboChartType);
     topLayout->addWidget(btnGenerateChart);
+    topLayout->addWidget(btnExportCsv);
     topLayout->addStretch();
     mainLayout->addLayout(topLayout);
 
@@ -208,10 +222,12 @@ void AdminPanel::setupConnections()
     connect(btnApprove, &QPushButton::clicked, this, &AdminPanel::approveSelectedRestaurant);
     connect(btnDisapprove, &QPushButton::clicked, this, &AdminPanel::disapproveSelectedRestaurant);
     connect(btnRefreshOrders, &QPushButton::clicked, this, &AdminPanel::loadOrders);
+    connect(btnExportOrders, &QPushButton::clicked, this, &AdminPanel::exportOrdersCsv);
     connect(btnRefreshCoupons, &QPushButton::clicked, this, &AdminPanel::loadCoupons);
     connect(btnAddCoupon, &QPushButton::clicked, this, &AdminPanel::addCoupon);
     connect(btnToggleCoupon, &QPushButton::clicked, this, &AdminPanel::toggleSelectedCoupon);
     connect(btnGenerateChart, &QPushButton::clicked, this, &AdminPanel::generateChart);
+    connect(btnExportCsv, &QPushButton::clicked, this, &AdminPanel::exportReportCsv);
 }
 
 int AdminPanel::getSelectedUserId() const
@@ -635,10 +651,89 @@ void AdminPanel::generateChart()
         showAverageRatingChart();
 }
 
+//! v2.7: shared save path for both CSV buttons.  The writer adds the
+//! UTF-8 BOM so Persian headers survive Excel's Windows decoder, and
+//! the RFC 4180 quoting keeps commas/newlines inside one field.
+bool AdminPanel::saveCsvFile(const QString &suggestedName, const QStringList &headers,
+                             const QList<QStringList> &rows)
+{
+    const QString path = QFileDialog::getSaveFileName(
+        this, QStringLiteral("ذخیره خروجی CSV"),
+        QDir::home().filePath(suggestedName + QStringLiteral(".csv")),
+        QStringLiteral("CSV (*.csv);;همه فایل‌ها (*)"));
+    if (path.isEmpty())
+        return false;
+
+    QFile file(path);
+    if (!file.open(QIODevice::WriteOnly | QIODevice::Truncate)) {
+        QMessageBox::warning(this, QStringLiteral("خروجی CSV"),
+                             QStringLiteral("نوشتن فایل ممکن نشد: %1")
+                                 .arg(file.errorString()));
+        return false;
+    }
+    file.write(CsvWriter::tableToCsv(headers, rows).toUtf8());
+    file.close();
+    QMessageBox::information(this, QStringLiteral("خروجی CSV"),
+                             QStringLiteral("%1 ردیف در «%2» ذخیره شد.")
+                                 .arg(rows.size()).arg(path));
+    return true;
+}
+
+//! Exports the table behind the currently displayed report.  When no
+//! report was generated yet (or the last one found no data) the chart
+//! is regenerated from the cached server data first.
+void AdminPanel::exportReportCsv()
+{
+    if (m_reportRows.isEmpty())
+        generateChart();
+    if (m_reportRows.isEmpty()) {
+        QMessageBox::information(this, QStringLiteral("خروجی CSV"),
+                                 QStringLiteral("گزارشی برای خروجی گرفتن وجود ندارد. "
+                                                "ابتدا داده‌ها را به‌روزرسانی کنید."));
+        return;
+    }
+    saveCsvFile(comboChartType->currentText().simplified().replace(QLatin1Char(' '),
+                                                                   QLatin1Char('_')),
+                m_reportHeaders, m_reportRows);
+}
+
+//! Dumps the whole order browser (every column, every row) to CSV - the
+//! raw "who ordered what, when" extract for offline analysis.
+void AdminPanel::exportOrdersCsv()
+{
+    if (!tableOrders || tableOrders->rowCount() == 0) {
+        QMessageBox::information(this, QStringLiteral("خروجی CSV"),
+                                 QStringLiteral("سفارشی برای خروجی گرفتن نیست. "
+                                                "ابتدا «به‌روزرسانی سفارش‌ها» را بزنید."));
+        return;
+    }
+    const int columns = tableOrders->columnCount();
+    QStringList headers;
+    for (int c = 0; c < columns; ++c) {
+        const QTableWidgetItem *item = tableOrders->horizontalHeaderItem(c);
+        headers << (item ? item->text()
+                         : QStringLiteral("ستون %1").arg(c + 1));
+    }
+    QList<QStringList> rows;
+    rows.reserve(tableOrders->rowCount());
+    for (int r = 0; r < tableOrders->rowCount(); ++r) {
+        QStringList row;
+        row.reserve(columns);
+        for (int c = 0; c < columns; ++c) {
+            const QTableWidgetItem *item = tableOrders->item(r, c);
+            row << (item ? item->text() : QString());
+        }
+        rows << row;
+    }
+    saveCsvFile(QStringLiteral("سفارش‌ها"), headers, rows);
+}
+
 void AdminPanel::showOrdersByStatusChart()
 {
     // Count orders per canonical status from the live server data instead
     // of the hard-coded numbers the original build displayed.
+    m_reportHeaders.clear();
+    m_reportRows.clear();
     QHash<QString, int> counts;
     const QJsonArray orders = m_lastOrders.value(QLatin1String("data")).toArray();
     for (const QJsonValue &v : orders) {
@@ -656,7 +751,9 @@ void AdminPanel::showOrdersByStatusChart()
     for (auto it = counts.cbegin(); it != counts.cend(); ++it) {
         categories << OrderStatus::toPersian(it.key());
         *set << it.value();
+        m_reportRows << QStringList{categories.last(), QString::number(it.value())};
     }
+    m_reportHeaders = {QStringLiteral("وضعیت"), QStringLiteral("تعداد سفارش")};
 
     auto *series = new QBarSeries();
     series->append(set);
@@ -682,6 +779,8 @@ void AdminPanel::showOrdersByStatusChart()
 
 void AdminPanel::showRestaurantRevenueChart()
 {
+    m_reportHeaders.clear();
+    m_reportRows.clear();
     const QJsonArray orders = m_lastOrders.value(QLatin1String("data")).toArray();
     const QJsonArray users = m_lastUsers.value(QLatin1String("data")).toArray();
 
@@ -705,9 +804,13 @@ void AdminPanel::showRestaurantRevenueChart()
     }
 
     auto *series = new QPieSeries();
-    for (auto it = revenue.cbegin(); it != revenue.cend(); ++it)
-        series->append(names.value(it.key(), QStringLiteral("رستوران #%1").arg(it.key())),
-                       it.value());
+    for (auto it = revenue.cbegin(); it != revenue.cend(); ++it) {
+        const QString name =
+            names.value(it.key(), QStringLiteral("رستوران #%1").arg(it.key()));
+        series->append(name, it.value());
+        m_reportRows << QStringList{name, QString::number(it.value(), 'f', 0)};
+    }
+    m_reportHeaders = {QStringLiteral("رستوران"), QStringLiteral("درآمد (تومان)")};
 
     auto *chart = new QChart();
     chart->addSeries(series);
@@ -717,6 +820,8 @@ void AdminPanel::showRestaurantRevenueChart()
 
 void AdminPanel::showActiveRestaurantsChart()
 {
+    m_reportHeaders.clear();
+    m_reportRows.clear();
     const QJsonArray orders = m_lastOrders.value(QLatin1String("data")).toArray();
     const QJsonArray users = m_lastUsers.value(QLatin1String("data")).toArray();
 
@@ -742,7 +847,9 @@ void AdminPanel::showActiveRestaurantsChart()
     for (auto it = orderCount.cbegin(); it != orderCount.cend(); ++it) {
         categories << names.value(it.key(), QStringLiteral("رستوران #%1").arg(it.key()));
         *set << it.value();
+        m_reportRows << QStringList{categories.last(), QString::number(it.value())};
     }
+    m_reportHeaders = {QStringLiteral("رستوران"), QStringLiteral("تعداد سفارش")};
 
     auto *series = new QBarSeries();
     series->append(set);
@@ -767,6 +874,8 @@ void AdminPanel::showActiveRestaurantsChart()
 
 void AdminPanel::showAverageRatingChart()
 {
+    m_reportHeaders.clear();
+    m_reportRows.clear();
     const QJsonArray reviews = m_lastReviews.value(QLatin1String("data")).toArray();
     if (reviews.isEmpty()) {
         QMessageBox::information(this, QStringLiteral("گزارش"),
@@ -787,8 +896,11 @@ void AdminPanel::showAverageRatingChart()
     QStringList categories;
     for (auto it = ratingPerRestaurant.cbegin(); it != ratingPerRestaurant.cend(); ++it) {
         categories << it.key();
-        *set << (double(it.value().first) / it.value().second);
+        const double average = double(it.value().first) / it.value().second;
+        *set << average;
+        m_reportRows << QStringList{categories.last(), QString::number(average, 'f', 2)};
     }
+    m_reportHeaders = {QStringLiteral("رستوران"), QStringLiteral("میانگین امتیاز")};
 
     auto *series = new QBarSeries();
     series->append(set);
