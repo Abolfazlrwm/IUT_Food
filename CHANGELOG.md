@@ -3,6 +3,61 @@
 All notable changes to IUT-Food are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/) (admittedly loosely).
 
+## [2.7.0] — 2026-11-18
+
+The "observable & operational" release: the server joins standard
+monitoring stacks (Prometheus, Docker health), the admin console
+exports its reports, and CI grows an ASan+UBSan leg.
+
+### Added
+- 📊 **Prometheus `/metrics` endpoint** (`src/server/metricsserver.h`) —
+  start the server with `--metrics-port 9101` and any Prometheus
+  scraper can read nine families in the text exposition format
+  (build info with version label, uptime, active/total sessions,
+  accepted/TLS connections, served/rejected requests, auth failures).
+  Read-only, one-shot HTTP/1.0, plain HTTP by design (scraping belongs
+  on the internal network); 404 for unknown paths, 405 for non-GET
+  methods.  The same counters power `get_server_stats`, so the admin
+  tab and a Grafana panel can never disagree.
+- 🤝 **Version handshake on the wire** — a new unauthenticated `ping`
+  command answers `pong` with `server_version` and `server_time`, and
+  every login reply names the release; an optional `client_version`
+  field earns `"warning": "outdated_client"` when the client's major
+  version is behind (purely additive: older clients are unaffected).
+- 🩺 **`--healthcheck` probe + Docker `HEALTHCHECK`** — the server
+  binary can probe a running instance (send `ping`, expect a pong with
+  a version) and exit 0/1, so the Dockerfile ships a real
+  `HEALTHCHECK` and `docker compose` services go green in `docker ps`.
+  The probe runs before any database is opened, so it never touches
+  the SQLite file of the process it checks.
+- 🧾 **CSV export in the admin console** — new "⬇️ خروجی CSV" buttons on
+  the reports tab and the order browser.  The CSV writer implements
+  RFC 4180 quoting and prepends a UTF-8 BOM so Persian headers survive
+  Excel on Windows (a test pins the exact quoting of
+  `فست فود "قهرمان"` and `9,700`).
+- 🧪 **Three new test suites** — `metrics_tests` (text format + real
+  HTTP round trips), `csv_tests` (quoting, BOM, Persian) and
+  `handshake_tests` (ping, version fields, outdated-client warning
+  against a real in-process server).  Fourteen suites, 73 cases.  The
+  protocol smoke test grew eight v2.7 checks.
+- 🧵 **`linux-asan` preset + CI sanitizers job** — the whole suite
+  compiles with `-fsanitize=address,undefined -fno-sanitize-recover=all`
+  (`cmake --preset linux-asan`) and runs green in a new CI job.
+  Leak detection stays off in the preset: Qt keeps intentional
+  process-lifetime singletons LeakSanitizer would misreport.
+- 🗂 **Issue & PR templates** — GitHub issue forms for bugs (component,
+  steps, platform, version) and feature requests, plus a PR checklist.
+
+### Fixed
+- 🏷 **`iut-food-server --version` lied** — it still printed `2.5.0`
+  while v2.6's changelog claimed a single version header; it now reads
+  `IUT_FOOD_VERSION` like everything else.
+- 🧯 **Qt 6's UTF-8 decoder eats the BOM** — `QString::fromUtf8` treats
+  a leading U+FEFF as encoding metadata and returns an empty string;
+  the CSV writer therefore emits the byte-order mark as an explicit
+  `QChar(0xFEFF)` (documented in `csvwriter.h`, pinned by a test that
+  would otherwise have passed vacuously with an empty needle).
+
 ## [2.6.0] — 2026-11-15
 
 The "presentable product" release: everything a reviewer pokes before

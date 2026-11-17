@@ -9,6 +9,6 @@
 //! the release now means changing exactly one line here (plus
 //! CHANGELOG.md).  The old hand-synced QStringLiteral("x.y.z") copies
 //! drifted (the screenshot driver still claimed 2.0.0 in v2.5).
-#define IUT_FOOD_VERSION "2.6.0"
+#define IUT_FOOD_VERSION "2.7.0"
 
 #endif // IUT_FOOD_VERSION_H
