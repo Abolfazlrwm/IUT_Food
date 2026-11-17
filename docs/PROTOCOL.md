@@ -11,23 +11,43 @@ every response is one line ending with `\n`.
   sent **without** a matching request — the client dispatches them by
   their `type` field.
 - Since **v2.2** every command except `login` must carry the session
-  token issued by the server (see §1).
+  token issued by the server (see §1).  Since **v2.7** the exception
+  list has exactly one more member: the unauthenticated `ping` probe.  Since **v2.7** the exception
+  list has exactly one more member: the unauthenticated `ping` probe.  Since **v2.7** the exception
+  list has exactly one more member: the unauthenticated `ping` probe.
 
 ---
 
 ## 1. Authentication (v2.2)
 
 The wire protocol is **session-token authenticated**. `login` is the
-only unauthenticated command; a successful login mints a 256-bit
+only unauthenticated data command; a successful login mints a 256-bit
 token (32 bytes from the OS CSPRNG, hex-encoded) that represents the
-signed-in identity `(user_id, role, username)`.
+signed-in identity `(user_id, role, username)`.  (The `ping` probe of
+v2.7 needs no session either - it exchanges no credentials.)
+
+### `ping` (v2.7, unauthenticated)
+The liveness probe behind `--healthcheck`, Docker `HEALTHCHECK` and
+load balancers.  No session, no arguments; the answer names the
+running release so a plain probe doubles as a compatibility check.
+```json
+→ {"command": "ping"}
+
+← {"type": "pong", "command": "ping", "server_version": "2.7.0",
+   "server_time": 1763475900123}
+```
+`server_time` is the server clock in epoch milliseconds — cheap way
+for a client to sanity-check its own clock.  Everything else in this
+section (except `login`) requires a session token.
 
 ### `login`
 ```json
-→ {"command": "login", "username": "demo_customer", "password": "123456"}
+→ {"command": "login", "username": "demo_customer", "password": "123456",
+   "client_version": "2.7.0"}
 
 ← {"type": "response", "command": "login", "success": true,
    "role": "customer", "user_id": 2,
+   "server_version": "2.7.0",
    "session_token": "9f86d081884c7d65…(64 hex chars)",
    "expires_in": 1800}
 ```
@@ -36,6 +56,12 @@ signed-in identity `(user_id, role, username)`.
   subsequent request as the `"token"` field.
 - `expires_in` — idle lifetime in seconds (default 1800 = 30 min).
   The window is **sliding**: each accepted request refreshes it.
+- `server_version` (v2.7) — the running release on every login reply.
+- `client_version` (v2.7, optional request field) — lets the client
+  report itself.  When its **major** version is older than the
+  server's, the reply carries `"warning": "outdated_client"`; login
+  still succeeds and minor-version drift is tolerated silently.  The
+  field is optional — older clients that never send it are unaffected.
 - Passwords are stored as salted PBKDF2-HMAC-SHA256 on the server
   (30 000 iterations); the raw password is only ever visible on the
   wire of this demo protocol (see Roadmap).

@@ -74,9 +74,11 @@ server is not running, then syncs through the server whenever it is available.
 - 🛡 **Admin** — credential-gated sign-in, user management (block / unblock / delete),
   restaurant approval workflow, order browser, coupon manager, **four live reports**
   (orders by status, revenue per restaurant, most active restaurants, average rating per
-  restaurant) rendered with Qt Charts, and a **live server-health tab (v2.6)** that reads
+  restaurant) rendered with Qt Charts, a **live server-health tab (v2.6)** that reads
   the admin-only `get_server_stats` command — uptime, sessions, connections, TLS usage,
-  served / rate-limited requests and auth failures
+  served / rate-limited requests and auth failures — and **one-click CSV export (v2.7)**
+  for the reports and the order browser (RFC 4180 quoting, UTF-8 BOM so Persian headers
+  survive Excel)
 - 🌙 **Dark & light themes** — full application-wide stylesheets, switched live from any
   window and persisted across restarts
 - 🔌 **Real-time server push** — status changes, chat messages and new-order events are
@@ -98,14 +100,20 @@ server is not running, then syncs through the server whenever it is available.
   database empty (no demo accounts, no pre-charged wallets), CMake presets give
   every platform a one-line configure, and the client launcher has an About
   dialog that names the running release
+- 📊 **Prometheus metrics + Docker health (v2.7)** — `--metrics-port 9101` serves the
+  counters in the Prometheus text format (`docs/METRICS.md` has the scrape config and
+  PromQL recipes), `--healthcheck` lets the container report its own liveness via the
+  unauthenticated `ping` command, and the compose stack wires both in
 - 🌱 **Self-seeding demo data** — first launch creates restaurants, menus, orders, a review,
   wallet balance and coupons, so every screen has content immediately
 - 🎨 **Bundled Vazirmatn typeface** + full right-to-left UI — Persian renders identically on
   Windows, Linux and macOS (no more broken Tahoma)
-- 🔒 **Authenticated protocol** — every command except `login` requires a server-minted
+- 🔒 **Authenticated protocol** — every command except `login` and the `ping` probe
+  requires a server-minted
   256-bit session token (30-minute sliding idle lifetime, `logout`, per-session role);
   wallets, orders, profiles and menus are ownership-checked against the session, so a
-  client-sent `user_id` is never trusted
+  client-sent `user_id` is never trusted.  Since v2.7 logins announce
+  `server_version` and can flag an outdated `client_version`
 - 🔑 **Hardened auth** — salted PBKDF2-HMAC-SHA256 password hashing with a transparent
   one-time upgrade of pre-v2.1 unsalted hashes; per-connection rate limiting (token bucket)
   and a 64 KiB message cap on the wire
@@ -278,9 +286,17 @@ with the actor, the peer address and the amounts or ids involved
 ([PROTOCOL.md §14](docs/PROTOCOL.md) lists the full record set); the file
 is plain JSON Lines, rotated at 5 MiB with 3 generations kept.
 
+Observability (v2.7): `--metrics-port <port>` serves the same counters in
+the [Prometheus text format](docs/METRICS.md) — build info, uptime,
+sessions, connections, TLS usage, served / rejected requests and auth
+failures — so Grafana, alert rules and capacity dashboards read the
+server without an admin login.  The Docker image ships a `HEALTHCHECK`
+driven by the new `--healthcheck` probe (a `ping` round trip), so
+`docker ps` reports a green `healthy` state.
+
 ## 🧪 Tests
 
-### Unit tests — eleven Qt Test suites, 60 cases
+### Unit tests — fourteen Qt Test suites, 73 cases
 
 The business rules are covered by Qt Test suites that run against a scratch SQLite
 database (and one suite against the official RFC vectors):
@@ -298,9 +314,18 @@ database (and one suite against the official RFC vectors):
 | `logger_tests` | level filtering, size-based rotation generations, stderr-only fallback, level parser |
 | `backup_tests` | snapshot validity over a second connection, retention pruning, disabled and missing-source modes, **failure-path connection hygiene (v2.6)** |
 | `audit_tests` | JSONL record shape, rotation generations, disabled mode |
+| `metrics_tests` (v2.7) | Prometheus text format shape, live gauges, real HTTP 200/404/405 round trips |
+| `csv_tests` (v2.7) | RFC 4180 quoting, CRLF rows, UTF-8 BOM (and the Qt BOM-decoder gotcha), Persian text |
+| `handshake_tests` (v2.7) | ping/pong with version, login version fields, outdated-client warning (real server) |
+| `metrics_tests` (v2.7) | Prometheus text format shape, live gauges, real HTTP 200/404/405 round trips |
+| `csv_tests` (v2.7) | RFC 4180 quoting, CRLF rows, UTF-8 BOM (and the Qt BOM-decoder gotcha), Persian text |
+| `handshake_tests` (v2.7) | ping/pong with version, login version fields, outdated-client warning (real server) |
+| `metrics_tests` (v2.7) | Prometheus text format shape, live gauges, real HTTP 200/404/405 round trips |
+| `csv_tests` (v2.7) | RFC 4180 quoting, CRLF rows, UTF-8 BOM (and the Qt BOM-decoder gotcha), Persian text |
+| `handshake_tests` (v2.7) | ping/pong with version, login version fields, outdated-client warning (real server) |
 
 ```bash
-ctest --test-dir build --output-on-failure    # 11 suites, 60 cases
+ctest --test-dir build --output-on-failure    # 14 suites, 73 cases
 # or, with the presets:
 ctest --preset linux-release
 ```
@@ -366,15 +391,15 @@ IUT-Food/
 │   ├── images/          # hero banner (WebP)
 │   └── screenshots/     # real app screenshots (WebP)
 ├── scripts/
-│   ├── smoke_test.py         # end-to-end protocol test (50+ checks)
+│   ├── smoke_test.py         # end-to-end protocol test (60+ checks)
 │   ├── benchmark.py          # latency / throughput harness
 │   ├── screenshot_driver.cpp # offscreen capture driver for the docs
 │   └── convert_screenshots.py # PNG → WebP for the gallery (v2.6)
-├── tests/               # eleven Qt Test suites (run with ctest)
+├── tests/               # fourteen Qt Test suites (run with ctest)
 ├── Dockerfile           # two-stage server image (+ docker-compose.yml)
-├── CMakePresets.json    # linux-release / linux-debug / windows-release (v2.6)
+├── CMakePresets.json    # linux-release / linux-debug / linux-asan / windows-release
 ├── .clang-format        # style + tidy baseline (v2.6)
-├── .github/workflows/   # CI (Ubuntu + Windows build, tests, docker) + release pipeline
+├── .github/workflows/   # CI (Ubuntu + Windows build, sanitizers, docker) + release pipeline
 └── CMakeLists.txt       # two targets: iut-food-client, iut-food-server
 ```
 
