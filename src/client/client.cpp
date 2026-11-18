@@ -12,12 +12,15 @@
 #include "shoppingcart.h"
 #include "shoppingcartpopup.h"
 #include "thememanager.h"
+#include "version.h"
 
 #include <QDebug>
 #include <QEvent>
+#include <QLabel>
 #include <QMenu>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QShortcut>
 #include <QStatusBar>
 #include <QToolButton>
 #include <QWidgetAction>
@@ -29,6 +32,10 @@ Client::Client(int userId, const QString &username,
 {
     ui->setupUi(this);
     ui->welcomeLabel->setText(QStringLiteral("سلام %1! چه چیزی میل دارید؟").arg(m_username));
+    // v2.8: the release in the title bar, so a screenshot always tells
+    // which build produced it.
+    setWindowTitle(QStringLiteral("IUT-Food %1 — سفارش آنلاین")
+                       .arg(QString::fromLatin1(IUT_FOOD_VERSION)));
 
     setupActions();
     createCartMenu();
@@ -41,6 +48,24 @@ Client::Client(int userId, const QString &username,
     connect(&net, &NetworkManager::connectionError, this, [this](const QString &message) {
         statusBar()->showMessage(QStringLiteral("اتصال به سرور برقرار نشد: %1").arg(message), 4000);
     });
+
+    // v2.8: permanent status widgets - the link state and the server
+    // release stay pinned on the right side of the status bar instead of
+    // flashing away in a transient message right when you start wondering.
+    m_connLabel = new QLabel(this);
+    m_connLabel->setObjectName(QStringLiteral("connectionStatusLabel"));
+    m_serverLabel = new QLabel(this);
+    m_serverLabel->setObjectName(QStringLiteral("serverVersionLabel"));
+    m_serverLabel->setToolTip(QStringLiteral("نسخه‌ای که سرور در پاسخ لاگین اعلام کرده است"));
+    statusBar()->addPermanentWidget(m_serverLabel);
+    statusBar()->addPermanentWidget(m_connLabel);
+    connect(&net, &NetworkManager::serverVersionReceived,
+            this, &Client::onServerVersionReceived);
+    connect(&net, &NetworkManager::outdatedClientWarning,
+            this, &Client::onOutdatedClient);
+    const QString announced = net.serverVersion();
+    if (!announced.isEmpty()) // re-login into a kept window: restore the pin
+        onServerVersionReceived(announced);
 
     // Push notifications from the server (restaurant confirms/ships an order).
     connect(&net, &NetworkManager::orderStatusUpdated, this, &Client::onOrderStatusUpdated);
@@ -58,6 +83,22 @@ void Client::setupActions()
     connect(ui->actionProfile, &QAction::triggered, this, &Client::on_actionProfile_triggered);
     connect(ui->showRestaurantsButton, &QPushButton::clicked,
             this, &Client::on_showRestaurantsButton_clicked);
+
+    // v2.8: every interactive element explains itself - tooltips on the
+    // toolbar and the search row, a clear button on the search field and
+    // Ctrl+F jumping straight into it.
+    ui->actionProfile->setToolTip(QStringLiteral("پروفایل، کیف پول، تاریخچه سفارش‌ها و گفت‌وگو"));
+    ui->actionCart->setToolTip(QStringLiteral("سبد خرید — باز و بسته می‌شود؛ پرداخت از همین‌جا"));
+    ui->showRestaurantsButton->setToolTip(QStringLiteral("نمایش رستوران‌ها با فیلترهای انتخاب‌شده (Enter)"));
+    ui->searchLineEdit->setToolTip(QStringLiteral("جست‌وجو در نام رستوران‌ها — Ctrl+F می‌آورد اینجا"));
+    ui->searchLineEdit->setClearButtonEnabled(true);
+    ui->typeFilterCombo->setToolTip(QStringLiteral("فیلتر نوع غذا"));
+    ui->locationFilterCombo->setToolTip(QStringLiteral("فیلتر منطقه‌ی دانشگاه"));
+    auto *findShortcut = new QShortcut(QKeySequence::Find, this);
+    connect(findShortcut, &QShortcut::activated, this, [this] {
+        ui->searchLineEdit->setFocus(Qt::ShortcutFocusReason);
+        ui->searchLineEdit->selectAll();
+    });
 
     // Light/dark switch lives in the toolbar next to profile & cart.
     m_themeAction = ui->toolBar->addAction(
@@ -229,10 +270,31 @@ void Client::onShowCheckoutDialog()
 
 void Client::onNetworkStatusChanged()
 {
-    if (NetworkManager::instance().isConnected())
-        statusBar()->showMessage(QStringLiteral("متصل به سرور 🟢"), 4000);
-    else
-        statusBar()->showMessage(QStringLiteral("حالت آفلاین — سفارش‌ها به‌صورت محلی ثبت می‌شوند"), 6000);
+    const NetworkManager &net = NetworkManager::instance();
+    if (net.isConnected()) {
+        // v2.8: pinned link state - and the TLS badge when the socket is
+        // actually encrypted, so the demo screenshots prove it.
+        m_connLabel->setText(net.isUsingTls()
+                                 ? QStringLiteral("متصل به سرور 🟢 🔒TLS")
+                                 : QStringLiteral("متصل به سرور 🟢"));
+        statusBar()->showMessage(QStringLiteral("اتصال به سرور برقرار شد."), 3000);
+    } else {
+        m_connLabel->setText(QStringLiteral("آفلاین ⚫"));
+        statusBar()->showMessage(
+            QStringLiteral("حالت آفلاین — سفارش‌ها به‌صورت محلی ثبت می‌شوند"), 6000);
+    }
+}
+
+void Client::onServerVersionReceived(const QString &version)
+{
+    m_serverLabel->setText(QStringLiteral("سرور v%1").arg(version));
+}
+
+void Client::onOutdatedClient(const QString &serverVersion)
+{
+    statusBar()->showMessage(
+        QStringLiteral("⚠️ سرور نسخه %1 را اجرا می‌کند؛ این کلاینت قدیمی‌تر است — لطفاً به‌روزرسانی کنید.")
+            .arg(serverVersion), 12000);
 }
 
 void Client::onOrderStatusUpdated(const QJsonObject &orderData)

@@ -59,6 +59,10 @@ public:
     //! True once a session token has been received for this connection.
     bool hasSession() const { return !m_sessionToken.isEmpty(); }
 
+    //! v2.8: the release the server announced in its login reply (the
+    //! v2.7 wire handshake - empty until the first successful login).
+    QString serverVersion() const { return m_serverVersion; }
+
 signals:
     void connected();
     void disconnected();
@@ -66,6 +70,12 @@ signals:
 
     //! Emitted when the server accepts (or rejects) the session login.
     void sessionEstablished(bool success, const QString &role, int userId);
+
+    //! v2.8: every login reply that names a server release re-emits this,
+    //! so the status bar can pin the exact version it talks to.
+    void serverVersionReceived(const QString &version);
+    //! v2.8: the server flagged this client as outdated (major behind).
+    void outdatedClientWarning(const QString &serverVersion);
 
     //! Every parsed server message, for generic consumers (admin panel).
     void jsonReceived(const QJsonObject &obj);
@@ -99,6 +109,9 @@ private:
     QString m_host = QStringLiteral("127.0.0.1");
     quint16 m_port = 1234;
     QString m_sessionToken;
+    //! v2.8: last announced server release ("" until the first login
+    //! reply carries server_version).
+    QString m_serverVersion;
     QQueue<QJsonObject> m_pendingBeforeSession;
     //! Credentials waiting for the TCP handshake to finish; wiped once
     //! the login request has been put on the wire.
