@@ -74,7 +74,17 @@ public:
         const QString stamp =
             QDateTime::currentDateTime().toString(
                 QStringLiteral("yyyyMMdd-HHmmss-zzz"));
-        const QString dest = m_dir + QStringLiteral("/iut_food-backup-%1.db").arg(stamp);
+        QString dest = m_dir + QStringLiteral("/iut_food-backup-%1.db").arg(stamp);
+        // v2.8 fix: a coarse clock tick can hand two rapid snapshots the
+        // same millisecond stamp, and VACUUM INTO refuses to overwrite an
+        // existing file (it showed up as a flaky retention test under
+        // ctest).  Zero-padded uniquifiers keep lexical order ==
+        // chronological order, so pruning stays correct.
+        for (int bump = 2; QFileInfo::exists(dest) && bump < 1000; ++bump) {
+            dest = m_dir + QStringLiteral("/iut_food-backup-%1-%2.db")
+                       .arg(stamp)
+                       .arg(bump, 3, 10, QLatin1Char('0'));
+        }
 
         // A throwaway named connection: addDatabase with the same name
         // twice would warn, so uniquify with a millisecond counter.
