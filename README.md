@@ -32,6 +32,23 @@ course project at Isfahan University of Technology). It ships as **two Qt applic
 The client is offline-first: it keeps a local SQLite cache and degrades gracefully when the
 server is not running, then syncs through the server whenever it is available.
 
+## 🎬 Try it in 60 seconds
+
+```bash
+git clone https://github.com/Abolfazlrwm/IUT_Food.git
+cd IUT_Food
+scripts/run_demo.sh    # builds if needed, seeds a fresh demo DB, starts server + client
+```
+
+The script parks your real database aside, waits for the server's built-in
+`--healthcheck` probe to say *healthy* and puts the launcher on screen —
+closing the client stops the demo and restores your data. Variants:
+`--tls` (encrypted session), `--metrics` (Prometheus on :9101),
+`--no-client` (headless). The full click-by-click tour lives in
+[docs/DEMO.md](docs/DEMO.md):
+
+![demo](docs/images/demo.gif)
+
 ## 🖼 Screenshots
 
 | Launcher | Customer workspace |
@@ -104,6 +121,12 @@ server is not running, then syncs through the server whenever it is available.
   counters in the Prometheus text format (`docs/METRICS.md` has the scrape config and
   PromQL recipes), `--healthcheck` lets the container report its own liveness via the
   unauthenticated `ping` command, and the compose stack wires both in
+- 🪟 **Product-grade desktop UX (v2.8)** — the status bar permanently pins the link
+  state (with a `🔒TLS` badge on encrypted sessions) **and the exact server release the
+  login handshake announced** — the v2.7 wire field finally reaches the user, and the
+  server's `outdated_client` warning surfaces too; `F1` opens About, `Ctrl+Q` quits,
+  `Ctrl+F` jumps into search, tooltips explain every toolbar action and titles carry
+  the release; a one-command demo (`scripts/run_demo.sh`) boots the whole product
 - 🌱 **Self-seeding demo data** — first launch creates restaurants, menus, orders, a review,
   wallet balance and coupons, so every screen has content immediately
 - 🎨 **Bundled Vazirmatn typeface** + full right-to-left UI — Persian renders identically on
@@ -191,7 +214,7 @@ erDiagram
 
 ```bash
 git clone https://github.com/Abolfazlrwm/IUT_Food.git
-cd IUT-Food
+cd IUT_Food
 cmake --preset linux-release          # windows-release on Windows; plain
                                       # "cmake -B build" also works
 cmake --build build/linux-release -j
@@ -317,12 +340,6 @@ database (and one suite against the official RFC vectors):
 | `metrics_tests` (v2.7) | Prometheus text format shape, live gauges, real HTTP 200/404/405 round trips |
 | `csv_tests` (v2.7) | RFC 4180 quoting, CRLF rows, UTF-8 BOM (and the Qt BOM-decoder gotcha), Persian text |
 | `handshake_tests` (v2.7) | ping/pong with version, login version fields, outdated-client warning (real server) |
-| `metrics_tests` (v2.7) | Prometheus text format shape, live gauges, real HTTP 200/404/405 round trips |
-| `csv_tests` (v2.7) | RFC 4180 quoting, CRLF rows, UTF-8 BOM (and the Qt BOM-decoder gotcha), Persian text |
-| `handshake_tests` (v2.7) | ping/pong with version, login version fields, outdated-client warning (real server) |
-| `metrics_tests` (v2.7) | Prometheus text format shape, live gauges, real HTTP 200/404/405 round trips |
-| `csv_tests` (v2.7) | RFC 4180 quoting, CRLF rows, UTF-8 BOM (and the Qt BOM-decoder gotcha), Persian text |
-| `handshake_tests` (v2.7) | ping/pong with version, login version fields, outdated-client warning (real server) |
 
 ```bash
 ctest --test-dir build --output-on-failure    # 14 suites, 73 cases
@@ -388,12 +405,17 @@ IUT-Food/
 ├── fonts/               # Vazirmatn (SIL OFL 1.1)
 ├── docs/
 │   ├── PROTOCOL.md      # full JSON protocol reference
-│   ├── images/          # hero banner (WebP)
+│   ├── ARCHITECTURE.md  # module map, request lifecycle, security model (v2.8)
+│   ├── DEMO.md          # the 60-second demo tour (v2.8)
+│   ├── METRICS.md       # Prometheus scrape config + PromQL recipes
+│   ├── images/          # hero banner + demo animation (WebP/GIF)
 │   └── screenshots/     # real app screenshots (WebP)
 ├── scripts/
+│   ├── run_demo.sh           # one-command demo: build + seed + server + client (v2.8)
 │   ├── smoke_test.py         # end-to-end protocol test (60+ checks)
 │   ├── benchmark.py          # latency / throughput harness
 │   ├── screenshot_driver.cpp # offscreen capture driver for the docs
+│   ├── make_demo_gif.py      # stitches the gallery into docs/images/demo.gif (v2.8)
 │   └── convert_screenshots.py # PNG → WebP for the gallery (v2.6)
 ├── tests/               # fourteen Qt Test suites (run with ctest)
 ├── Dockerfile           # two-stage server image (+ docker-compose.yml)
@@ -417,6 +439,8 @@ IUT-Food/
 - [x] Rotating SQLite backups and a JSONL audit trail (v2.5)
 - [x] Live server-health tab in the admin console + `--no-demo-data` for real deployments (v2.6)
 - [x] One version header, CMake presets, clang-format/tidy baseline and a truthful security policy (v2.6)
+- [x] Prometheus /metrics endpoint, Docker HEALTHCHECK and the client-side version handshake display (v2.7)
+- [x] One-command demo (`scripts/run_demo.sh`), permanent connection/version status bar and desktop UX polish (v2.8)
 - [ ] Per-order chat rooms instead of global broadcast
 - [ ] WebSocket transport option
 - [ ] Telegram bot for order notifications
@@ -441,7 +465,9 @@ test) and match the existing code style (4 spaces, `QStringLiteral`, documented 
 **IUT-Food** یک سامانه سفارش غذای دانشگاهی است که با Qt و C++17 ساخته شده:
 کلاینت گرافیکی برای مشتری، رستوران و مدیر + سرور TCP با قابلیت push لحظه‌ای وضعیت سفارش‌ها و چت.
 در نسخهٔ ۲، **کیف پول، کدهای تخفیف، رهگیری زنده سفارش، حالت تاریک و علاقه‌مندی‌ها** اضافه شده‌اند؛
-نسخهٔ ۲.۴ **لاگ چرخشی و خاموشی تمیز**، نسخهٔ ۲.۵ **پشتیبان‌گیری چرخشی SQLite و گزارش حسابرسی JSONL** و نسخهٔ ۲.۶ **تب سلامت سرور در پنل مدیریت، پرچم --no-demo-data برای استقرار واقعی و یک هدر نسخهٔ واحد** را می‌آورد.
+نسخهٔ ۲.۴ **لاگ چرخشی و خاموشی تمیز**، نسخهٔ ۲.۵ **پشتیبان‌گیری چرخشی SQLite و گزارش حسابرسی JSONL**،
+نسخهٔ ۲.۶ **تب سلامت سرور در پنل مدیریت، پرچم --no-demo-data برای استقرار واقعی و یک هدر نسخهٔ واحد**،
+نسخهٔ ۲.۷ **معیارهای Prometheus و healthcheck داکر** و نسخهٔ ۲.۸ **دموی یک‌فرمانی، نوار وضعیت دائمی اتصال/نسخه سرور و پولیش کامل تجربه کاربری** را می‌آورد.
 رابط کاربری کاملاً فارسی و راست‌به‌چپ است و داده‌های نمونه در اولین اجرا ساخته می‌شوند.
 
 ⭐ اگر این پروژه برایتان مفید بود، یک ستاره بزنید!
