@@ -3,6 +3,50 @@
 All notable changes to IUT-Food are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/) (admittedly loosely).
 
+## [2.8.0] — 2026-11-18
+
+The "presentable" release: one command runs the whole product, the
+client finishes the v2.7 version handshake on screen, and the desktop
+UX gets the polish a reviewer expects.
+
+### Added
+- 🎬 **One-command demo** (`scripts/run_demo.sh`) — builds when needed,
+  parks your database aside, lets the server seed a fresh one, waits
+  for the built-in `--healthcheck` probe and launches the client;
+  `--tls`, `--metrics` and `--no-client` variants; closing the client
+  restores your data.  The click-by-click tour lives in the new
+  `docs/DEMO.md`, and `scripts/make_demo_gif.py` stitches the
+  screenshot gallery into the README's `docs/images/demo.gif`.
+- 🪟 **Permanent connection & server-version status bar** — the
+  customer workspace pins two labels instead of flashing 4-second
+  messages: the link state (with a `🔒TLS` badge on encrypted
+  sessions) and the release the server announced in its login reply.
+- 🖼 **`docs/ARCHITECTURE.md`** — module map, the life of a request,
+  the security-model table and the threading model in one document.
+
+### Changed
+- 🤝 **The client listens to the version handshake** — since v2.7 every
+  login reply carries `server_version`; the client kept dropping the
+  field.  `NetworkManager::serverVersion()` plus two new signals
+  surface it in the status bar, and the server's `outdated_client`
+  warning finally reaches the user as a 12-second status message.
+- ⌨️ **Desktop-standard shortcuts & hints** — `F1` opens About (which
+  now names the MIT license and the repository), `Ctrl+Q` quits,
+  `Ctrl+F` jumps into the restaurant search (which gained a clear
+  button), tooltips explain every launcher button and toolbar action,
+  and window titles carry the running release.
+
+### Fixed
+- 🧯 **Flaky snapshot collisions on coarse clocks** — two rapid
+  snapshots could land on the same millisecond stamp, and `VACUUM INTO`
+  refuses to overwrite an existing file (it made the backup retention
+  test fail intermittently under ctest).  Destinations are now
+  uniquified with zero-padded suffixes, keeping lexical order ==
+  chronological order for pruning.
+- 📖 **README test table repeated the three v2.7 suites three times** —
+  one row per suite again; the clone instructions also say
+  `cd IUT_Food` (the directory git actually creates).
+
 ## [2.7.0] — 2026-11-18
 
 The "observable & operational" release: the server joins standard
