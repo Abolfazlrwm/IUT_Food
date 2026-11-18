@@ -18,6 +18,14 @@ MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent), ui(new Ui::MainWindow)
 {
     ui->setupUi(this);
+    // v2.8: the launcher titles itself like a product, not a debug window.
+    setWindowTitle(QStringLiteral("IUT-Food %1 — سامانه سفارش غذای دانشگاه صنعتی اصفهان")
+                       .arg(QString::fromLatin1(IUT_FOOD_VERSION)));
+
+    // v2.8: the three entry points explain themselves on hover.
+    ui->userButton->setToolTip(QStringLiteral("ورود مشتری: رستوران‌ها، سبد خرید، کیف پول و پیگیری زنده سفارش"));
+    ui->restaurantButton->setToolTip(QStringLiteral("ورود رستوران: مدیریت منو و تایید/ارسال سفارش‌ها"));
+    ui->adminButton->setToolTip(QStringLiteral("ورود مدیر: تأیید رستوران‌ها، گزارش‌های زنده و خروجی CSV"));
 
     // Light/dark switch for the launcher window as well.
     QAction *themeAction = menuBar()->addAction(
@@ -31,16 +39,26 @@ MainWindow::MainWindow(QWidget *parent)
 
     // v2.6: the launcher finally says which release you are running (the
     // server had a --version flag from the start; the GUI had nothing).
+    // v2.8: reachable with F1 from anywhere in the launcher, and it now
+    // names the license and the repository too.
     QAction *aboutAction = menuBar()->addAction(QStringLiteral("درباره"));
+    aboutAction->setShortcut(QKeySequence::HelpContents); // F1
+    aboutAction->setToolTip(QStringLiteral("درباره IUT-Food (F1)"));
     connect(aboutAction, &QAction::triggered, this, []() {
         QMessageBox::about(nullptr, QStringLiteral("درباره IUT-Food"),
                            QStringLiteral("<b>IUT-Food %1</b>"
                                           "<br>سامانه سفارش غذای دانشگاه"
                                           "<br>کلاینت و سرور Qt/C++17 با پروتکل JSON روی TCP"
-                                          "<br>ساخته‌شده با Qt %2")
+                                          "<br>ساخته‌شده با Qt %2"
+                                          "<br>مجوز MIT — github.com/Abolfazlrwm/IUT_Food")
                                .arg(QStringLiteral(IUT_FOOD_VERSION),
                                     QLatin1String(qVersion())));
     });
+
+    // v2.8: the standard Ctrl+Q way out, like every desktop product.
+    QAction *quitAction = menuBar()->addAction(QStringLiteral("خروج"));
+    quitAction->setShortcut(QKeySequence::Quit); // Ctrl+Q
+    connect(quitAction, &QAction::triggered, this, &QMainWindow::close);
 }
 
 MainWindow::~MainWindow()

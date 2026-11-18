@@ -10,6 +10,7 @@ class ShoppingCartPopup;
 class OrderTrackerDialog;
 class QMenu;
 class QAction;
+class QLabel;
 
 namespace Ui { class Client; }
 
@@ -36,6 +37,8 @@ private slots:
     void onShowCheckoutDialog();
 
     void onNetworkStatusChanged();
+    void onServerVersionReceived(const QString &version);
+    void onOutdatedClient(const QString &serverVersion);
     void onOrderStatusUpdated(const QJsonObject &orderData);
     void onNewChatMessage(const QJsonObject &chatData);
 
@@ -51,6 +54,11 @@ private:
     DataBaseHandler *m_dbHandler;
     int m_userId;
     QString m_username;
+
+    //! v2.8: permanent status-bar widgets - the link state and the
+    //! server release stay visible instead of flashing for 4 seconds.
+    QLabel *m_connLabel = nullptr;
+    QLabel *m_serverLabel = nullptr;
 
     ProfilePanel *m_profilePanel = nullptr;
     ShoppingCartPopup *m_cartPopup = nullptr;

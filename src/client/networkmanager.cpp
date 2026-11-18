@@ -197,6 +197,19 @@ void NetworkManager::onReadyRead()
                 m_sessionToken = obj.value(QLatin1String("session_token")).toString();
                 flushQueue(); // release the requests parked before the session
             }
+            // v2.8: the login reply has named the server release since the
+            // v2.7 wire handshake, but the client kept dropping the field.
+            // It is now pinned to the status bar, and when the server
+            // flags an outdated major version its warning surfaces too.
+            const QString announced =
+                obj.value(QLatin1String("server_version")).toString();
+            if (!announced.isEmpty()) {
+                m_serverVersion = announced;
+                emit serverVersionReceived(announced);
+                if (obj.value(QLatin1String("warning")).toString()
+                    == QLatin1String("outdated_client"))
+                    emit outdatedClientWarning(announced);
+            }
             emit sessionEstablished(obj.value(QLatin1String("success")).toBool(),
                                     obj.value(QLatin1String("role")).toString(),
                                     obj.value(QLatin1String("user_id")).toInt());
