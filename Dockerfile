@@ -30,7 +30,9 @@ COPY --from=build /src/build/iut-food-server /app/iut-food-server
 # named volume inherits the ownership on first mount and the SQLite file is
 # writable. Port 1234 is unprivileged and the healthcheck runs the same
 # binary, so nothing in the image needs root anymore.
-RUN useradd --system --uid 1000 --create-home iutfood \
+# UID 1001: ubuntu:24.04 already ships an `ubuntu` user at UID 1000, so
+# useradd --uid 1000 fails with "UID 1000 is not unique" and the build dies.
+RUN useradd --system --uid 1001 --create-home iutfood \
     && mkdir -p /data && chown iutfood:iutfood /data
 USER iutfood
 
