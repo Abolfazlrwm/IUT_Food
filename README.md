@@ -100,9 +100,13 @@ closing the client stops the demo and restores your data. Variants:
   window and persisted across restarts
 - 🔌 **Real-time server push** — status changes, chat messages and new-order events are
   broadcast over TCP; every window of every process updates instantly
-- 🔒 **TLS transport (opt-in)** — start the server with `--tls-cert/--tls-key` and the
-  same newline-delimited JSON travels inside a standard TLS 1.2/1.3 channel; the client
-  login dialog exposes a TLS switch (with self-signed consent for demos), and a full
+- 🔒 **TLS transport (default on the client)** — start the server with
+  `--tls-cert/--tls-key` and the same newline-delimited JSON travels inside a
+  standard TLS 1.2/1.3 channel. The desktop client connects with TLS out of the
+  box (uncheck it only for a plaintext demo); certificate errors are fatal
+  unless the demo self-signed consent box is ticked, and even then only the
+  self-signed error is waived — hostname/expiry failures stay fatal. A server
+  started without `--tls-cert/--tls-key` logs a warning and serves plaintext.
   unit suite + CI smoke run verify the encrypted path
 - 💾 **Offline-first client** — local SQLite cache; the app is fully usable without the server
 - 📜 **Rotating file logging + graceful shutdown (v2.4)** — `--log-file/--log-level` with

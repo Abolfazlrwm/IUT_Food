@@ -215,6 +215,12 @@ int main(int argc, char *argv[])
             LOG_ERROR("server", "failed to load the TLS certificate and key - aborting.");
             return 1;
         }
+    } else {
+        LOG_WARNING("server",
+                    "TLS is OFF: passwords and session tokens cross the network "
+                    "in cleartext. Generate a certificate with "
+                    "scripts/generate_certs.sh and pass --tls-cert/--tls-key; "
+                    "the desktop client connects with TLS by default.");
     }
     const quint16 port = quint16(qMax(1, parser.value(portOption).toInt()));
     if (!server.listen(QHostAddress::Any, port)) {
