@@ -88,9 +88,13 @@ void LoginDialog::buildUi()
     connForm->addRow(QStringLiteral("آدرس سرور:"), m_hostEdit);
     connForm->addRow(QStringLiteral("درگاه:"), m_portEdit);
     m_tlsCheck = new QCheckBox(QStringLiteral("رمزگذاری TLS 🔒"));
-    m_tlsCheck->setChecked(settings.value(QStringLiteral("connection/tls"), false).toBool());
+    // TLS is the default: credentials cross the network on every login, so
+    // plaintext is the opt-OUT. Existing persisted settings still win.
+    m_tlsCheck->setChecked(settings.value(QStringLiteral("connection/tls"), true).toBool());
     m_tlsTrustCheck = new QCheckBox(QStringLiteral("پذیرش گواهی self-signed (دمو)"));
-    m_tlsTrustCheck->setChecked(settings.value(QStringLiteral("connection/tlsTrust"), true).toBool());
+    // Fail closed by default: accepting arbitrary certificates silently
+    // defeats TLS. Demo setups opt in explicitly.
+    m_tlsTrustCheck->setChecked(settings.value(QStringLiteral("connection/tlsTrust"), false).toBool());
     m_tlsTrustCheck->setEnabled(m_tlsCheck->isChecked());
     connect(m_tlsCheck, &QCheckBox::toggled, m_tlsTrustCheck, &QWidget::setEnabled);
     auto *tlsRow = new QHBoxLayout;

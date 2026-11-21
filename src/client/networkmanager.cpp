@@ -58,10 +58,22 @@ void NetworkManager::ensureSocketType()
         // the default CA check; the login dialog decides whether they are
         // acceptable.  Without that consent the handshake aborts and the
         // user sees the certificate error.
+        //
+        // Even WITH that consent only the self-signed-certificate error is
+        // waived.  Hostname mismatches, expired certificates, weak ciphers
+        // and every other failure stay fatal — otherwise a single checkbox
+        // would silently defeat the whole point of TLS (MITM protection).
         connect(ssl, &QSslSocket::sslErrors, this,
                 [this, ssl](const QList<QSslError> &errors) {
+            QList<QSslError> waivable;
             if (m_acceptSelfSigned) {
-                ssl->ignoreSslErrors();
+                for (const QSslError &error : errors) {
+                    if (error.error() == QSslError::SelfSignedCertificate)
+                        waivable.append(error);
+                }
+            }
+            if (!waivable.isEmpty() && waivable.size() == errors.size()) {
+                ssl->ignoreSslErrors(waivable);
                 return;
             }
             emit connectionError(errors.isEmpty()
@@ -89,8 +101,9 @@ void NetworkManager::connectNow()
         return;
     m_sessionToken.clear();
     if (auto *ssl = qobject_cast<QSslSocket *>(m_socket)) {
-        if (m_acceptSelfSigned)
-            ssl->ignoreSslErrors(); // apply to the upcoming handshake
+        // The sslErrors handler below decides per-error what is waivable; a
+        // blanket ignoreSslErrors() here would accept everything before the
+        // handler ever sees the errors.
         ssl->connectToHostEncrypted(m_host, m_port);
     } else {
         m_socket->connectToHost(m_host, m_port);
