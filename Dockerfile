@@ -26,6 +26,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 WORKDIR /app
 COPY --from=build /src/build/iut-food-server /app/iut-food-server
 
+# Non-root runtime user. /data is pre-created and owned by that user so a
+# named volume inherits the ownership on first mount and the SQLite file is
+# writable. Port 1234 is unprivileged and the healthcheck runs the same
+# binary, so nothing in the image needs root anymore.
+RUN useradd --system --uid 1000 --create-home iutfood \
+    && mkdir -p /data && chown iutfood:iutfood /data
+USER iutfood
+
 # v2.7: the container reports its own health.  The probe runs the same
 # binary in --healthcheck mode - it sends the unauthenticated ping
 # command over TCP and expects a pong naming the release.  Orchestrators
