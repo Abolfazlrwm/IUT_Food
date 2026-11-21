@@ -97,7 +97,10 @@ jobs:
       - name: Install Qt 6 toolchain from apt
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends cmake g++ qt6-base-dev qt6-charts-dev libgl1-mesa-dev
+          # libqt6sql6-sqlite: Ubuntu splits the Qt SQL drivers out of
+          # qt6-base-dev; without it every SQLite-backed test suite fails
+          # in initTestCase (db.openDataBase() returns false).
+          sudo apt-get install -y --no-install-recommends cmake g++ qt6-base-dev qt6-charts-dev libgl1-mesa-dev libqt6sql6-sqlite
 
       - name: Configure (CMake)
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
