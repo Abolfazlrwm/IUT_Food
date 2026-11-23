@@ -3,6 +3,54 @@
 All notable changes to IUT-Food are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/) (admittedly loosely).
 
+## [2.9.0] — 2026-11-23
+
+The "everywhere" release: the same sources now ship as native
+artifacts for four platforms, and the client runs on sandboxed
+platforms without touching its desktop behaviour.
+
+### Added
+- 🤖 **Android APK (arm64-v8a)** — the release workflow cross-builds
+  the client with the Qt 6.8 Android kit against the NDK and attaches
+  a debug-signed, directly-installable APK to every tag
+  (`docs/ANDROID.md` covers install, server connection and
+  troubleshooting).  Launcher icons in five densities, app label and
+  package id (`ir.iut.food`) come from the new
+  `packaging/android/res` tree.
+- 🐧 **Self-contained Debian package** — `scripts/package_deb.sh`
+  stages the client + server with their Qt libraries, the xcb/eglfs/
+  offscreen platform plugins, the WebP image formats and the SQLite
+  driver under `/opt/iut-food` (`$ORIGIN` rpaths), adds a `.desktop`
+  entry and an hicolor icon, and builds `iut-food_<v>_amd64.deb` —
+  no system Qt required on the target machine.
+- 🍎 **macOS DMG** — a new release job builds the client as an .app
+  bundle and deploys it with `macdeployqt -dmg`.
+- 📇 **`CITATION.cff`** — the repo is now citable; the GitHub
+  "Cite this repository" button picks it up.
+
+### Changed
+- 📁 **Platform-aware database location** — the client kept its
+  database next to the binary, which is read-only on Android (inside
+  the APK) and inside the bundle on macOS.  The new `AppDirs` helper
+  moves it to `QStandardPaths::AppDataLocation` on those two
+  platforms; Windows and Linux keep the portable
+  *database-next-to-binary* behaviour (and `run_demo.sh` keeps
+  working unchanged).
+- 📦 **Release matrix** — `release.yml` now produces windows-x64.zip,
+  linux-x64.tar.gz + amd64.deb, macos.dmg and android-arm64.apk,
+  each with SHA-256 checksums, plus a `workflow_dispatch` trigger for
+  manual re-runs.
+
+### Fixed (carried over from the Nov 20 push)
+- 🔒 **TLS by default on the client** — new connections are encrypted
+  unless explicitly switched off; the self-signed waiver is scoped to
+  the host you actually consented to (the server keeps printing the
+  cleartext warning when it runs without certificates).
+- 🐳 **Docker hardening** — the server container runs as a dedicated
+  non-root user (UID 1001; 24.04 images reserve 1000).
+- 📚 **`docs/adr/0001`** — the opt-in-TLS + offline-first design is
+  recorded as an architecture decision record.
+
 ## [2.8.0] — 2026-11-18
 
 The "presentable" release: one command runs the whole product, the

@@ -246,12 +246,23 @@ docker compose up          # builds the image and serves on 1234 with a named vo
 The image is a two-stage build (distro Qt 6 toolchain → slim runtime with only the
 server and its Qt libraries) and is built *and* smoke-tested inside CI on every push.
 
-### Option D — ready-made Windows build
+### Option D — ready-made builds (Windows, Linux, macOS, Android)
 
-Every release ships a portable Windows x64 zip (client, server and the Qt DLLs they
-need — unzip and run, no installer). Grab it from
-[Releases](https://github.com/Abolfazlrwm/IUT_Food/releases); each artifact comes with
-a SHA-256 checksum. Linux users should prefer the Docker route above.
+Every release ships native artifacts built by CI from the tagged sources,
+each with a SHA-256 checksum.  Grab them from
+[Releases](https://github.com/Abolfazlrwm/IUT_Food/releases/latest):
+
+| Platform | Artifact | What's inside |
+|---|---|---|
+| Windows 10/11 x64 | `IUT-Food-<v>-windows-x64.zip` | client + server + Qt DLLs — unzip and run |
+| Linux x64 | `IUT-Food-<v>-linux-x64.tar.gz` | client + server (needs the distro Qt 6 runtime) |
+| Linux x64, Debian/Ubuntu | `iut-food_<v>_amd64.deb` | client + server with bundled Qt under `/opt/iut-food`, menu entry and icon — **no system Qt needed** |
+| macOS | `IUT-Food-<v>-macos.dmg` | the client `.app` (unsigned: right-click → *Open* on first launch) |
+| Android 8.0+ (arm64) | `IUT-Food-<v>-android-arm64.apk` | the client, debug-signed; install + server connection in `docs/ANDROID.md` |
+
+The Android client and the macOS bundle store their SQLite database in the
+per-user app-data directory; Windows and Linux stay portable
+(database next to the binary) so `run_demo.sh` keeps working unchanged.
 
 ## ▶ Quick tour (2 minutes)
 
@@ -445,6 +456,7 @@ IUT-Food/
 - [x] One version header, CMake presets, clang-format/tidy baseline and a truthful security policy (v2.6)
 - [x] Prometheus /metrics endpoint, Docker HEALTHCHECK and the client-side version handshake display (v2.7)
 - [x] One-command demo (`scripts/run_demo.sh`), permanent connection/version status bar and desktop UX polish (v2.8)
+- [x] Windows zip, Linux tarball + self-contained deb, macOS DMG and an Android APK from the same tag (v2.9)
 - [ ] Per-order chat rooms instead of global broadcast
 - [ ] WebSocket transport option
 - [ ] Telegram bot for order notifications

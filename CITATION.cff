@@ -1,0 +1,33 @@
+cff-version: 1.2.0
+title: IUT-Food
+message: >-
+  If you use IUT-Food in your teaching or research, please cite it
+  using the metadata below (or the GitHub "Cite this repository"
+  button, which reads this same file).
+type: software
+authors:
+  - name: Ranjbaran, Abolfazl
+    alias: Abolfazlrwm
+    website: https://github.com/Abolfazlrwm
+    affiliation: Isfahan University of Technology
+repository-code: https://github.com/Abolfazlrwm/IUT_Food
+url: https://github.com/Abolfazlrwm/IUT_Food/releases/latest
+abstract: >-
+  IUT-Food is a campus food-ordering system built with Qt 6/C++17:
+  a Qt Widgets desktop client (restaurants, menus, wallet, coupons,
+  live order tracking, reviews, admin console with CSV export) and a
+  TCP server speaking newline-delimited JSON over optional TLS, with
+  session-token auth, PBKDF2 password hashing, rate limiting, SQLite
+  storage (WAL), rolling backups, a JSONL audit trail and Prometheus
+  metrics. Ships for Windows, Linux, macOS and Android.
+keywords:
+  - Qt
+  - C++17
+  - SQLite
+  - TCP
+  - TLS
+  - food-ordering
+  - campus
+license: MIT
+version: 2.9.0
+date-released: "2026-11-23"
