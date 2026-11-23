@@ -1,11 +1,16 @@
 name: Release
 
-# Attach ready-to-run artifacts to every version tag: a portable
-# Windows build (Qt DLLs bundled with windeployqt) and a Linux
-# tarball, each with a SHA-256 checksum.
+# Attach ready-to-run artifacts to every version tag:
+#   - a portable Windows build (Qt DLLs bundled with windeployqt)
+#   - a portable Linux tarball plus a self-contained Debian package
+#   - a macOS DMG (client .app deployed with macdeployqt)
+#   - an Android APK (arm64-v8a, debug-signed) built with the Qt 6
+#     Android kit against the NDK on the GitHub runner
+# Each artifact ships with a SHA-256 checksum.
 on:
   push:
     tags: ["v*"]
+  workflow_dispatch: {}   # manual re-run of failed artifact jobs
 
 permissions:
   contents: write
@@ -76,8 +81,8 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
-  linux-tarball:
-    name: Linux tarball
+  linux-portable:
+    name: Linux tarball + deb
     runs-on: ubuntu-24.04
     steps:
       - name: Checkout
@@ -103,6 +108,12 @@ jobs:
           python3 scripts/smoke_test.py
           kill $SERVER_PID 2>/dev/null || true
 
+      - name: Build the self-contained Debian package
+        run: |
+          sudo apt-get update -q && sudo apt-get install -y -q patchelf
+          VERSION="${GITHUB_REF_NAME#v}"
+          scripts/package_deb.sh "$VERSION" build .
+
       - name: Checksum and tar
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
@@ -116,19 +127,131 @@ jobs:
             echo
             echo "    sudo apt install qt6-base-dev libqt6charts6"
             echo
+            echo "Or install the bundled .deb (no system Qt needed):"
+            echo
+            echo "    sudo apt install ./iut-food_${VERSION}_amd64.deb"
+            echo
             echo "Or run the server without any host Qt via Docker:"
             echo
             echo "    docker build -t iut-food-server . && docker run -p 1234:1234 iut-food-server"
           } > "$STAGE/README-LINUX.txt"
-          find "$STAGE" -type f -print0 | sort -z | xargs -0 sha256sum > checksums-linux.txt
+          {
+            find "$STAGE" -type f -print0 | sort -z | xargs -0 sha256sum
+            sha256sum "iut-food_${VERSION}_amd64.deb"
+          } > "$STAGE-checksums.txt"
           tar czf "$STAGE.tar.gz" "$STAGE"
-          mv checksums-linux.txt "$STAGE-checksums.txt"
 
       - name: Upload to the release
         run: |
           gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
             gh release create "$GITHUB_REF_NAME" --title "IUT-Food $GITHUB_REF_NAME" \
               --notes "Automated release artifacts (notes are maintained in the repository docs)."
-          gh release upload "$GITHUB_REF_NAME" *.tar.gz *-checksums.txt --clobber
+          gh release upload "$GITHUB_REF_NAME" *.tar.gz *.deb *-checksums.txt --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  macos-dmg:
+    name: macOS DMG (client)
+    runs-on: macos-14
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install Qt 6.8
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8"
+          modules: qtcharts qtimageformats
+          cache: true
+
+      - name: Configure and build
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=Release
+          cmake --build build -j"$(sysctl -n hw.ncpu)"
+
+      - name: Deploy the client bundle into a DMG
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          ls build/*.app
+          macdeployqt build/iut-food-client.app -dmg -always-overwrite
+          mv build/iut-food-client.dmg "IUT-Food-${VERSION}-macos.dmg"
+          shasum -a 256 "IUT-Food-${VERSION}-macos.dmg" > "IUT-Food-${VERSION}-macos-checksums.txt"
+
+      - name: Upload to the release
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" --title "IUT-Food $GITHUB_REF_NAME" \
+              --notes "Automated release artifacts (notes are maintained in the repository docs)."
+          gh release upload "$GITHUB_REF_NAME" *.dmg *-macos-checksums.txt --clobber
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  android-apk:
+    name: Android APK (arm64)
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Make sure an NDK is available
+        run: |
+          NDK_DIR="$(ls -d "$ANDROID_HOME"/ndk/* 2>/dev/null | sort -V | tail -1 || true)"
+          if [ -z "$NDK_DIR" ]; then
+            yes | sdkmanager --licenses >/dev/null || true
+            sdkmanager --install "ndk;27.2.12479018"
+            NDK_DIR="$ANDROID_HOME/ndk/27.2.12479018"
+          fi
+          echo "ANDROID_NDK_ROOT=$NDK_DIR" >> "$GITHUB_ENV"
+          echo "NDK: $NDK_DIR"
+
+      - name: Install Qt 6.8 for Android (arm64-v8a)
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.8"
+          host: linux
+          target: android
+          arch: android_arm64_v8a
+          modules: qtcharts qtimageformats
+          cache: true
+
+      - name: Configure the cross build
+        run: |
+          cmake -B build-android -DCMAKE_BUILD_TYPE=Release \
+            -DCMAKE_TOOLCHAIN_FILE="$QT_ROOT_DIR/lib/cmake/Qt6/qt.toolchain.cmake" \
+            -DANDROID_ABI=arm64-v8a \
+            -DQT_ANDROID_BUILD_ALL_ABIS=OFF
+
+      - name: Build
+        run: cmake --build build-android -j"$(nproc)"
+
+      - name: Package the APK
+        run: |
+          VERSION="${GITHUB_REF_NAME#v}"
+          OUT="IUT-Food-${VERSION}-android-arm64.apk"
+          # The Qt 6 android build exposes an `apk` convenience target;
+          # fall back to androiddeployqt directly if it is missing.
+          cmake --build build-android --target apk || {
+            SETTINGS="$(ls build-android/android_*_deployment_settings.json | head -1)"
+            "$QT_ROOT_DIR/bin/androiddeployqt" --input "$SETTINGS" \
+              --output build-android/android-build --apk "$OUT"
+          }
+          APK="$(ls build-android/android-build/build/outputs/apk/debug/*.apk 2>/dev/null | head -1)"
+          [ -n "$APK" ] || APK="$(ls build-android/**/*.apk 2>/dev/null | head -1)"
+          [ -n "$APK" ] || { echo "no APK produced"; find build-android -name '*.apk'; exit 1; }
+          cp "$APK" "$OUT"
+          sha256sum "$OUT" > "IUT-Food-${VERSION}-android-checksums.txt"
+
+      - name: Upload to the release
+        run: |
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 || \
+            gh release create "$GITHUB_REF_NAME" --title "IUT-Food $GITHUB_REF_NAME" \
+              --notes "Automated release artifacts (notes are maintained in the repository docs)."
+          gh release upload "$GITHUB_REF_NAME" *.apk *-android-checksums.txt --clobber
         env:
           GH_TOKEN: ${{ github.token }}
