@@ -88,17 +88,36 @@ target_link_libraries(iutfood_client
 
 # ----------------------------------------------------------------------
 # Client (GUI application).  AUTORCC compiles the qrc (icons + bundled
-# fonts) directly into the binary.
+# fonts) directly into the binary.  On Qt 6 the target is created with
+# qt_add_executable, which carries the Android APK machinery; on the
+# Qt 5.15 fallback plain add_executable keeps the same desktop flags.
 # ----------------------------------------------------------------------
-add_executable(iut-food-client WIN32 MACOSX_BUNDLE
-    src/client/main.cpp
-    resources/resources.qrc)
+if(QT_VERSION_MAJOR EQUAL 6)
+    qt_add_executable(iut-food-client WIN32 MACOSX_BUNDLE
+        src/client/main.cpp
+        resources/resources.qrc)
+else()
+    add_executable(iut-food-client WIN32 MACOSX_BUNDLE
+        src/client/main.cpp
+        resources/resources.qrc)
+endif()
 target_link_libraries(iut-food-client PRIVATE iutfood_client)
+
+if(ANDROID)
+    set_target_properties(iut-food-client PROPERTIES
+        QT_ANDROID_PACKAGE_NAME "ir.iut.food"
+        QT_ANDROID_APP_NAME "IUT-Food"
+        QT_ANDROID_PACKAGE_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/packaging/android"
+        QT_ANDROID_MIN_SDK_VERSION 26
+        QT_ANDROID_TARGET_SDK_VERSION 34)
+endif()
 
 # ----------------------------------------------------------------------
 # Server library (everything except the entry point) - also linked by
 # the TLS test suite so tests can run a real server in-process.
+# The server is a desktop artifact; Android builds ship the client only.
 # ----------------------------------------------------------------------
+if(NOT ANDROID)
 add_library(iutfood_server STATIC
     src/server/server.cpp            src/server/server.h
     src/server/connectionhandler.cpp src/server/connectionhandler.h
@@ -126,14 +145,17 @@ add_executable(iut-screenshot-driver EXCLUDE_FROM_ALL
     scripts/screenshot_driver.cpp
     resources/resources.qrc)
 target_link_libraries(iut-screenshot-driver PRIVATE iutfood_client)
+endif() # NOT ANDROID (server + screenshot driver)
 
 source_group(TREE "${CMAKE_CURRENT_SOURCE_DIR}/src" PREFIX "Source Files" FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/src/client/*.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/src/client/*.h)
 
+if(NOT ANDROID)
 install(TARGETS iut-food-client iut-food-server
         BUNDLE  DESTINATION .
         RUNTIME DESTINATION bin)
+endif()
 
 # ----------------------------------------------------------------------
 # Unit tests (Qt Test).  Run with:  ctest --test-dir build
