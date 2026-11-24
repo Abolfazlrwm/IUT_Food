@@ -1,5 +1,6 @@
 #include <QApplication>
 #include <QFontDatabase>
+#include <QIcon>
 #include <QMessageBox>
 #include <QDir>
 #include <QDebug>
@@ -17,6 +18,10 @@ int main(int argc, char *argv[])
     QApplication::setApplicationName(QStringLiteral("IUT-Food"));
     QApplication::setOrganizationName(QStringLiteral("IUT"));
     QApplication::setApplicationVersion(QStringLiteral(IUT_FOOD_VERSION));
+
+    // The brand mark for the window, taskbar and WM hints (the exe/
+    // bundle icons themselves come from the .rc / .icns packaging).
+    QApplication::setWindowIcon(QIcon(QStringLiteral(":/icons/app-icon.png")));
 
     // Ship the Vazirmatn typeface so Persian text renders identically on
     // Windows, Linux and macOS instead of falling back to Tahoma.

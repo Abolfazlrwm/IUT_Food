@@ -1,0 +1,3 @@
+// IUT-Food application icon - compiled into both executables so the
+// Explorer, the taskbar and shortcuts show the brand mark.
+1 ICON "@IUT_ICON_FILE_NATIVE@"

@@ -158,6 +158,33 @@ install(TARGETS iut-food-client iut-food-server
 endif()
 
 # ----------------------------------------------------------------------
+# Branding: the app icon ships inside every binary where the platform
+# supports it.  Windows compiles a multi-resolution .ico resource into
+# both executables (Explorer, taskbar, shortcuts); macOS bundles the
+# .icns into the .app Resources and points CFBundleIconFile at it, so
+# macdeployqt -dmg carries it into the DMG.  Linux/Android icons are
+# installed by scripts/package_deb.sh and the packaging/android res
+# tree respectively (regenerate everything: scripts/make_brand_assets.py).
+# ----------------------------------------------------------------------
+if(WIN32)
+    set(IUT_ICON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/packaging/windows/iut-food.ico")
+    file(TO_NATIVE_PATH "${IUT_ICON_FILE}" IUT_ICON_FILE_NATIVE)
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/packaging/windows/app.rc.in"
+                   "${CMAKE_CURRENT_BINARY_DIR}/app.rc" @ONLY)
+    target_sources(iut-food-client PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/app.rc")
+    target_sources(iut-food-server PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/app.rc")
+endif()
+if(APPLE)
+    set_target_properties(iut-food-client PROPERTIES
+        MACOSX_BUNDLE_ICON_FILE "iut-food.icns")
+    target_sources(iut-food-client PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/packaging/macos/iut-food.icns")
+    set_source_files_properties(
+        "${CMAKE_CURRENT_SOURCE_DIR}/packaging/macos/iut-food.icns" PROPERTIES
+        MACOSX_PACKAGE_LOCATION Resources)
+endif()
+
+# ----------------------------------------------------------------------
 # Unit tests (Qt Test).  Run with:  ctest --test-dir build
 # The Qt Test module is optional: a Qt SDK without it simply skips this
 # section instead of failing the whole configure step.  The android

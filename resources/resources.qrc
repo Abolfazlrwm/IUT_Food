@@ -1,5 +1,6 @@
 <RCC>
     <qresource prefix="/icons">
+        <file alias="app-icon.png">icons/app-icon.png</file>
         <file alias="user.webp">icons/user.webp</file>
         <file alias="shopping-cart.webp">icons/shopping-cart.webp</file>
     </qresource>
