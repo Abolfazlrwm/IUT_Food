@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=IUT-Food
+GenericName=Campus food ordering
+Comment=Browse restaurants, order food, pay from your wallet
+Exec=iut-food-client
+Icon=iut-food
+Terminal=false
+Categories=Network;Utility;

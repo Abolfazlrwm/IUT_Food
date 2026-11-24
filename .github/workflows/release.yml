@@ -6,7 +6,10 @@ name: Release
 #   - a macOS DMG (client .app deployed with macdeployqt)
 #   - an Android APK (arm64-v8a, debug-signed) built with the Qt 6
 #     Android kit against the NDK on the GitHub runner
-# Each artifact ships with a SHA-256 checksum.
+# Every desktop archive extracts into ONE folder: the two executables
+# (double-click launchers on Windows) on top, docs/ and licenses/
+# beside them and a bilingual START-HERE.txt so the first run is
+# obvious.  Each artifact ships with a SHA-256 checksum.
 on:
   push:
     tags: ["v*"]
@@ -39,23 +42,62 @@ jobs:
       - name: Stage the portable layout
         shell: bash
         run: |
-          mkdir -p dist
+          VERSION="${GITHUB_REF_NAME#v}"
+          mkdir -p dist/runtime dist/docs/adr dist/licenses
           CLI=$( (ls build/iut-food-client.exe build/Release/iut-food-client.exe 2>/dev/null || true) | head -1 )
           SRV=$( (ls build/iut-food-server.exe build/Release/iut-food-server.exe 2>/dev/null || true) | head -1 )
           if [ -z "$CLI" ] || [ -z "$SRV" ]; then
             echo "binaries not found"; find build -maxdepth 2 -name '*.exe'; exit 1
           fi
-          cp "$CLI" dist/iut-food-client.exe
-          cp "$SRV" dist/iut-food-server.exe
+          # One folder: the double-click launchers on top, the Qt
+          # runtime next to the binaries, docs and licenses in folders.
+          cp "$CLI" dist/runtime/iut-food-client.exe
+          cp "$SRV" dist/runtime/iut-food-server.exe
           windeployqt --release --no-translations --no-system-d3d-compiler \
-            --no-opengl-sw dist/iut-food-client.exe
+            --no-opengl-sw dist/runtime/iut-food-client.exe
           # The server needs QtCore/QtNetwork/QtSql from the same folder.
-          cp README.md LICENSE CHANGELOG.md dist/
+          cp README.md CHANGELOG.md docs/*.md dist/docs/
+          cp docs/adr/*.md dist/docs/adr/
+          cp LICENSE NOTICE.md fonts/OFL-LICENSE.txt dist/licenses/
+          printf '\xef\xbb\xbf' > dist/START-HERE.txt
+          cat >> dist/START-HERE.txt <<IUT_EOF
+          IUT-Food ${VERSION} - campus food ordering (client + server)
+          =============================================================
+
+          WHAT'S HERE
+            IUT-Food Client.cmd    double-click to start the desktop app
+            IUT-Food Server.cmd    double-click to start the server (console)
+            runtime\               the executables + their Qt libraries
+            docs\                  full documentation (README, PROTOCOL,
+                                   ARCHITECTURE, DEMO, ANDROID, METRICS)
+            licenses\              LICENSE, NOTICE.md, bundled-font license
+
+          QUICK START (2 minutes)
+            1. Double-click "IUT-Food Server.cmd" and keep its window open.
+            2. Double-click "IUT-Food Client.cmd".
+            3. Log in with admin / admin123 (demo data is seeded on first run).
+
+          شروع سریع
+            ۱. روی «IUT-Food Server.cmd» دوبار کلیک کنید و پنجره‌ی سرور را باز نگه دارید.
+            ۲. روی «IUT-Food Client.cmd» دوبار کلیک کنید.
+            ۳. با نام کاربری admin و رمز admin123 وارد شوید؛ داده‌های نمونه در
+               نخستین اجرا ساخته می‌شوند.
+
+          NOTES
+            - Portable: the demo database is created inside runtime\ on first
+              run; delete runtime\*.db for a factory reset.
+            - The binaries are unsigned CI builds: if SmartScreen appears,
+              choose "More info" -> "Run anyway".
+            - The server listens on port 1234; docs\ANDROID.md links a phone
+              to this server, docs\PROTOCOL.md documents the wire format.
+          IUT_EOF
+          printf '@echo off\r\nstart "" "%%~dp0runtime\\iut-food-client.exe" %%*\r\n' > "dist/IUT-Food Client.cmd"
+          printf '@echo off\r\ncd /d "%%~dp0runtime"\r\niut-food-server.exe %%*\r\n' > "dist/IUT-Food Server.cmd"
 
       - name: Run the smoke suite against the packaged server
         shell: bash
         run: |
-          ./dist/iut-food-server.exe --port 1234 --db ci_server.db &
+          ./dist/runtime/iut-food-server.exe --port 1234 --db ci_server.db &
           SERVER_PID=$!
           sleep 3
           python scripts/smoke_test.py
@@ -118,23 +160,55 @@ jobs:
         run: |
           VERSION="${GITHUB_REF_NAME#v}"
           STAGE="IUT-Food-${VERSION}-linux-x64"
-          mkdir "$STAGE"
+          mkdir -p "$STAGE/docs/adr" "$STAGE/licenses" "$STAGE/desktop"
           cp build/iut-food-client build/iut-food-server "$STAGE"/
-          cp README.md LICENSE CHANGELOG.md "$STAGE"/
-          {
-            echo "The binaries need the Qt 6 runtime libraries (Core, Gui, Widgets,"
-            echo "Network, Sql, Charts). On Debian/Ubuntu:"
-            echo
-            echo "    sudo apt install qt6-base-dev libqt6charts6"
-            echo
-            echo "Or install the bundled .deb (no system Qt needed):"
-            echo
-            echo "    sudo apt install ./iut-food_${VERSION}_amd64.deb"
-            echo
-            echo "Or run the server without any host Qt via Docker:"
-            echo
-            echo "    docker build -t iut-food-server . && docker run -p 1234:1234 iut-food-server"
-          } > "$STAGE/README-LINUX.txt"
+          cp README.md CHANGELOG.md docs/*.md "$STAGE/docs"/
+          cp docs/adr/*.md "$STAGE/docs/adr/"
+          cp LICENSE NOTICE.md fonts/OFL-LICENSE.txt "$STAGE/licenses"/
+          cp packaging/linux/iut-food-client.desktop "$STAGE/desktop/"
+          cp packaging/linux/iut-food.png "$STAGE/desktop/iut-food-icon.png"
+          cp packaging/linux/install-desktop.sh "$STAGE/desktop/"
+          chmod +x "$STAGE/desktop/install-desktop.sh"
+          printf '\xef\xbb\xbf' > "$STAGE/START-HERE.txt"
+          cat >> "$STAGE/START-HERE.txt" <<IUT_EOF
+          IUT-Food ${VERSION} - campus food ordering (client + server)
+          =============================================================
+
+          WHAT'S HERE
+            iut-food-client    the desktop app
+            iut-food-server    the server (console)
+            docs/              full documentation (README, PROTOCOL,
+                               ARCHITECTURE, DEMO, ANDROID, METRICS)
+            licenses/          LICENSE, NOTICE.md, bundled-font license
+            desktop/           optional menu-entry installer (see below)
+
+          QUICK START (2 minutes)
+            ./iut-food-server --port 1234 --db server.db   # keep this terminal
+            ./iut-food-client                              # second terminal
+            Log in with admin / admin123 (demo data is seeded on first run).
+
+          شروع سریع
+            ./iut-food-server --port 1234 --db server.db   (ترمینال اول)
+            ./iut-food-client                              (ترمینال دوم)
+            با admin / admin123 وارد شوید؛ داده‌های نمونه در نخستین اجرا ساخته می‌شوند.
+
+          THE QT RUNTIME
+            The binaries need the Qt 6 libraries (Core, Gui, Widgets, Network,
+            Sql, Charts).  On Debian/Ubuntu:
+
+                sudo apt install qt6-base-dev libqt6charts6 libqt6sql6-sqlite
+
+            Or install the bundled .deb instead - it carries its own Qt:
+
+                sudo apt install ./iut-food_${VERSION}_amd64.deb
+
+            Or run the server with no host Qt at all via Docker:
+
+                docker build -t iut-food-server . && docker run -p 1234:1234 iut-food-server
+
+          DESKTOP MENU ENTRY (optional)
+            cd desktop && ./install-desktop.sh
+          IUT_EOF
           {
             find "$STAGE" -type f -print0 | sort -z | xargs -0 sha256sum
             sha256sum "iut-food_${VERSION}_amd64.deb"

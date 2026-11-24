@@ -254,11 +254,21 @@ each with a SHA-256 checksum.  Grab them from
 
 | Platform | Artifact | What's inside |
 |---|---|---|
-| Windows 10/11 x64 | `IUT-Food-<v>-windows-x64.zip` | client + server + Qt DLLs — unzip and run |
-| Linux x64 | `IUT-Food-<v>-linux-x64.tar.gz` | client + server (needs the distro Qt 6 runtime) |
+| Windows 10/11 x64 | `IUT-Food-<v>-windows-x64.zip` | one tidy folder: `IUT-Food Client.cmd` + `IUT-Food Server.cmd` launchers on top, `runtime/` with the binaries + Qt DLLs, `docs/`, `licenses/`, bilingual `START-HERE.txt` |
+| Linux x64 | `IUT-Food-<v>-linux-x64.tar.gz` | one tidy folder: `iut-food-client` + `iut-food-server` on top, `docs/`, `licenses/`, optional `desktop/` menu-entry installer, `START-HERE.txt` (needs the distro Qt 6 runtime) |
 | Linux x64, Debian/Ubuntu | `iut-food_<v>_amd64.deb` | client + server with bundled Qt under `/opt/iut-food`, menu entry and icon — **no system Qt needed** |
-| macOS | `IUT-Food-<v>-macos.dmg` | the client `.app` (unsigned: right-click → *Open* on first launch) |
-| Android 8.0+ (arm64) | `IUT-Food-<v>-android-arm64.apk` | the client, debug-signed; install + server connection in `docs/ANDROID.md` |
+| macOS | `IUT-Food-<v>-macos.dmg` | the client `.app` carrying the brand icon (unsigned: right-click → *Open* on first launch) |
+| Android 8.0+ (arm64) | `IUT-Food-<v>-android-arm64.apk` | the client with the branded launcher icon, debug-signed; install + server connection in `docs/ANDROID.md` |
+
+Every desktop archive extracts into **one folder that explains itself**:
+the two executables on top, documentation and licenses in their own
+folders, and a bilingual `START-HERE.txt` (English + فارسی) that walks
+through the two-command demo — server first, client second, log in with
+`admin / admin123`.  On Windows the top level shows only the two
+double-click launchers; the Qt runtime they point at lives in `runtime/`.
+The Windows executables, the macOS bundle, the deb and the APK all carry
+the same brand icon (regenerate the set with
+`scripts/make_brand_assets.py`).
 
 The Android client and the macOS bundle store their SQLite database in the
 per-user app-data directory; Windows and Linux stay portable

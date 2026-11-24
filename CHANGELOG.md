@@ -40,6 +40,20 @@ platforms without touching its desktop behaviour.
   linux-x64.tar.gz + amd64.deb, macos.dmg and android-arm64.apk,
   each with SHA-256 checksums, plus a `workflow_dispatch` trigger for
   manual re-runs.
+- 🎨 **One brand mark everywhere** — a proper app icon (a white serving
+  cloche on the stylesheet-blue tile) is compiled into the Windows
+  executables (`.ico` resource), bundled into the macOS .app
+  (`.icns`), installed by the deb, shown in the window/taskbar on
+  every desktop OS and used for the Android launcher in all five
+  densities; regenerate the whole set with
+  `scripts/make_brand_assets.py`.
+- 🗂 **Packages that explain themselves** — every release archive
+  extracts into one folder: the two executables (double-click
+  launchers on Windows) on top, `docs/` and `licenses/` beside them
+  and a bilingual `START-HERE.txt` quickstart (English + فارسی);
+  the Linux tarball adds an optional `desktop/install-desktop.sh`
+  menu-entry installer, and the Windows zip exposes only the two
+  launchers with the Qt runtime tucked into `runtime/`.
 
 ### Fixed (carried over from the Nov 20 push)
 - 🔒 **TLS by default on the client** — new connections are encrypted
