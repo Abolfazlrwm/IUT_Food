@@ -1,3 +1,6 @@
 // IUT-Food application icon - compiled into both executables so the
-// Explorer, the taskbar and shortcuts show the brand mark.
-1 ICON "@IUT_ICON_FILE_NATIVE@"
+// Explorer, the taskbar and shortcuts show the brand mark.  The .ico
+// sits beside this generated .rc in the build tree, so a plain
+// filename works everywhere; rc.exe eats "\a" in an absolute backslash
+// path as a bell escape (RC2135 file not found).
+1 ICON "iut-food.ico"

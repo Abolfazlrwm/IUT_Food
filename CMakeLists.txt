@@ -167,10 +167,14 @@ endif()
 # tree respectively (regenerate everything: scripts/make_brand_assets.py).
 # ----------------------------------------------------------------------
 if(WIN32)
-    set(IUT_ICON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/packaging/windows/iut-food.ico")
-    file(TO_NATIVE_PATH "${IUT_ICON_FILE}" IUT_ICON_FILE_NATIVE)
+    # Embed the brand icon into both executables.  The .rc is configured
+    # into the build tree and the .ico lands right beside it, so the .rc
+    # can carry a plain relative filename: rc.exe parses "\a" inside an
+    # absolute backslash path as a bell escape (RC2135 file not found).
     configure_file("${CMAKE_CURRENT_SOURCE_DIR}/packaging/windows/app.rc.in"
                    "${CMAKE_CURRENT_BINARY_DIR}/app.rc" @ONLY)
+    configure_file("${CMAKE_CURRENT_SOURCE_DIR}/packaging/windows/iut-food.ico"
+                   "${CMAKE_CURRENT_BINARY_DIR}/iut-food.ico" COPYONLY)
     target_sources(iut-food-client PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/app.rc")
     target_sources(iut-food-server PRIVATE "${CMAKE_CURRENT_BINARY_DIR}/app.rc")
 endif()
