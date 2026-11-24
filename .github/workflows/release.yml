@@ -152,7 +152,9 @@ jobs:
 
   macos-dmg:
     name: macOS DMG (client)
-    runs-on: macos-14
+    # macos-14 jobs were cancelled at provisioning time on this repo;
+    # macos-15 is the currently served macOS ARM64 image.
+    runs-on: macos-15
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -199,21 +201,23 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Make sure an NDK is available
+      - name: Make sure an NDK is available (r26, the line Qt 6.6 supports)
         run: |
-          NDK_DIR="$(ls -d "$ANDROID_HOME"/ndk/* 2>/dev/null | sort -V | tail -1 || true)"
-          if [ -z "$NDK_DIR" ]; then
+          NDK_DIR="$ANDROID_HOME/ndk/26.3.11579264"
+          if [ ! -d "$NDK_DIR" ]; then
             yes | sdkmanager --licenses >/dev/null || true
-            sdkmanager --install "ndk;27.2.12479018"
-            NDK_DIR="$ANDROID_HOME/ndk/27.2.12479018"
+            sdkmanager --install "ndk;26.3.11579264"
           fi
           echo "ANDROID_NDK_ROOT=$NDK_DIR" >> "$GITHUB_ENV"
           echo "NDK: $NDK_DIR"
 
-      - name: Install Qt 6.8 for Android (arm64-v8a)
+      - name: Install Qt 6.6 for Android (arm64-v8a)
         uses: jurplel/install-qt-action@v4
         with:
-          version: "6.8"
+          # Qt 6.7/6.8 ship no Android binaries on the linux-host
+          # qtsdkrepository channel (it stops at qt6_663), so the APK
+          # cross-builds against the newest Android-enabled Qt.
+          version: "6.6.3"
           host: linux
           target: android
           arch: android_arm64_v8a
