@@ -201,7 +201,7 @@ jobs:
           distribution: temurin
           java-version: "17"
 
-      - name: Make sure an NDK is available (r26, the line Qt 6.6 supports)
+      - name: Prepare the Android SDK (NDK r26 + platform android-34)
         run: |
           # sdkmanager is not on PATH on the runner image; it lives in
           # the command-line tools dir under ANDROID_HOME.
@@ -219,6 +219,21 @@ jobs:
           fi
           echo "ANDROID_NDK_ROOT=$NDK_DIR" >> "$GITHUB_ENV"
           echo "NDK: $NDK_DIR"
+          # androiddeployqt builds against the HIGHEST installed platform.
+          # The runner's android-36-ext19 jar cannot be parsed by the
+          # aapt2 that ships with the AGP 7.4.1 Qt 6.6 templates use
+          # (RES_TABLE_TYPE_TYPE overlap), so keep android-34 - the API
+          # level Qt 6.6 targets - as the highest one available.
+          echo "platforms before: $(ls "$ANDROID_HOME/platforms" 2>/dev/null | tr '\n' ' ')"
+          for p in "$ANDROID_HOME"/platforms/android-3[5-9]* \
+                   "$ANDROID_HOME"/platforms/android-4[0-9]* \
+                   "$ANDROID_HOME"/platforms/android-3[0-9]-ext*; do
+            [ -e "$p" ] && rm -rf "$p"
+          done
+          if [ ! -d "$ANDROID_HOME/platforms/android-34" ]; then
+            "$SDKMGR" --install "platforms;android-34"
+          fi
+          echo "platforms after: $(ls "$ANDROID_HOME/platforms" 2>/dev/null | tr '\n' ' ')"
 
       - name: Install Qt 6.6 for Android (arm64-v8a)
         uses: jurplel/install-qt-action@v4
@@ -250,7 +265,8 @@ jobs:
           # The Qt 6 android build exposes an `apk` convenience target;
           # fall back to androiddeployqt directly if it is missing.
           cmake --build build-android --target apk || {
-            SETTINGS="$(ls build-android/android_*_deployment_settings.json | head -1)"
+            # Qt names the file android-<target>-deployment-settings.json
+            SETTINGS="$(ls build-android/android-*deployment-settings.json 2>/dev/null | head -1)"
             "$QT_ROOT_DIR/bin/androiddeployqt" --input "$SETTINGS" \
               --output build-android/android-build --apk "$OUT"
           }
