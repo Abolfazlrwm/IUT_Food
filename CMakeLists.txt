@@ -160,11 +160,13 @@ endif()
 # ----------------------------------------------------------------------
 # Unit tests (Qt Test).  Run with:  ctest --test-dir build
 # The Qt Test module is optional: a Qt SDK without it simply skips this
-# section instead of failing the whole configure step.
+# section instead of failing the whole configure step.  The android
+# cross-build skips them too: the arm64 binaries could never run on the
+# host and the server library they exercise is desktop-only.
 # ----------------------------------------------------------------------
 find_package(Qt${QT_VERSION_MAJOR} QUIET COMPONENTS Test)
 
-if (Qt${QT_VERSION_MAJOR}Test_FOUND)
+if (Qt${QT_VERSION_MAJOR}Test_FOUND AND NOT ANDROID)
     enable_testing()
 
     set(IUT_TEST_SUITES
