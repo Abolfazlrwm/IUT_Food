@@ -203,10 +203,19 @@ jobs:
 
       - name: Make sure an NDK is available (r26, the line Qt 6.6 supports)
         run: |
+          # sdkmanager is not on PATH on the runner image; it lives in
+          # the command-line tools dir under ANDROID_HOME.
+          SDKMGR="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SDKMGR" ] || SDKMGR="$(command -v sdkmanager || true)"
           NDK_DIR="$ANDROID_HOME/ndk/26.3.11579264"
           if [ ! -d "$NDK_DIR" ]; then
-            yes | sdkmanager --licenses >/dev/null || true
-            sdkmanager --install "ndk;26.3.11579264"
+            if [ -z "$SDKMGR" ]; then
+              echo "no sdkmanager under $ANDROID_HOME/cmdline-tools" >&2
+              ls "$ANDROID_HOME" "$ANDROID_HOME/cmdline-tools" 2>/dev/null || true
+              exit 1
+            fi
+            yes | "$SDKMGR" --licenses >/dev/null || true
+            "$SDKMGR" --install "ndk;26.3.11579264"
           fi
           echo "ANDROID_NDK_ROOT=$NDK_DIR" >> "$GITHUB_ENV"
           echo "NDK: $NDK_DIR"
